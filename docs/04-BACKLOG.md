@@ -28,9 +28,15 @@ Porta 8100 · banco `data/magno.db` (testes usam `MAGNO_DB=/tmp/test-magno.db`).
 - **Pronto quando:** suíte de auth verde e rota de admin devolve 403 para cliente.
 
 ## F2 — Catálogo + site institucional (a parte que não é agenda)
+- [x] Home institucional **interativa** (antecipada para a apresentação): relógio da loja,
+      aberto/fechado real, grade de horários calculada (funcionamento − almoço − ocupados −
+      antecedência de 1 h), seleção de serviço/barbeiro/horário, passo de confirmação com
+      validação e link de WhatsApp. Dados ainda de exemplo no HTML (`web/app.js`, `web/index.html`).
+- [x] Variante de composição: `web/index-b.html` ("placa"), mesmo sistema e mesmas dinâmicas.
+- [x] 26 verificações de browser (`/tmp/testa_dinamico.py`) + 8 testes de servidor passando.
 - [ ] CRUD admin de serviços, profissionais (cria usuário barbeiro), horários, exceções, bloqueios
 - [ ] `GET/PUT /api/admin/config` (regras + textos da home)
-- [ ] `GET /api/publica/site|servicos|equipe`
+- [ ] `GET /api/publica/site|servicos|equipe` — e a home passa a ler daqui em vez dos `data-*`
 - [ ] SPA: home institucional (hero, serviços+preços, equipe, endereço, horário, WhatsApp)
 - [ ] Tema claro/escuro com script no `<head>` (sem flash) e CSS com variáveis
 - [ ] Testes: CRUD, permissões, catálogo público só mostra ativos

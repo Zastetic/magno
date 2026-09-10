@@ -535,6 +535,134 @@ hr { border: 0; border-top: 1px solid var(--linha); margin: 26px 0; }
 .composicao-placa .cabeca-secao span { display: none; }
 .composicao-placa .contato-grade { grid-template-columns: 1fr; gap: 40px; }
 
+/* --------------------------------------------------- componentes dinâmicos */
+.cartao-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.cartao-topo .rotulo { margin-bottom: 6px; }
+.relogio {
+  margin: 0 0 6px;
+  font: 500 13px/1 var(--sans);
+  color: var(--tinta-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.relogio small { color: var(--tinta-3); font-size: 11px; letter-spacing: .06em; }
+
+.nav a.ativo { color: var(--tinta); border-color: var(--latao); }
+
+.faixa li.hoje dd { color: var(--latao-claro); }
+.marca-hoje {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 9px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--latao);
+  border: 1px solid var(--linha-forte);
+  border-radius: 2px;
+  padding: 2px 5px;
+  vertical-align: middle;
+}
+
+.lista-vagas li { cursor: pointer; }
+.lista-vagas li small {
+  display: block;
+  margin-top: 3px;
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+}
+.lista-vagas li.vaga-vazia { border-style: dashed; color: var(--tinta-3); cursor: default; }
+
+.menu-servicos a.selecionado { background: var(--latao-fundo); box-shadow: inset 2px 0 0 var(--latao); }
+.menu-servicos a.selecionado .nome { color: var(--latao-claro); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
+.chip {
+  font: 500 14px/1 var(--sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta);
+  background: none;
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  padding: 9px 13px;
+  cursor: pointer;
+  transition: border-color .18s, color .18s, background .18s;
+}
+.chip:hover { border-color: var(--latao); color: var(--latao-claro); }
+.chip.ativo { background: var(--latao); border-color: var(--latao); color: #1a1208; }
+.chip.vazio { border-style: dashed; color: var(--tinta-3); cursor: default; }
+.chip.vazio:hover { border-color: var(--linha-forte); color: var(--tinta-3); }
+
+.resumo-servico { font-size: 15px; color: var(--tinta-2); margin: 0 0 20px; }
+.resumo-servico b { font-family: var(--serif); font-size: 19px; font-weight: 400; color: var(--tinta); }
+.resumo-servico.fraco { color: var(--tinta-3); font-style: italic; }
+.resumo-escolha {
+  font-size: 14px;
+  color: var(--tinta-2);
+  border-left: 2px solid var(--latao);
+  padding-left: 12px;
+  margin: 0 0 22px;
+}
+.aviso {
+  border: 1px solid var(--linha-forte);
+  border-left: 2px solid var(--latao);
+  background: var(--latao-fundo);
+  border-radius: var(--raio);
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--tinta-2);
+  margin: 0 0 18px;
+}
+
+.campo { margin: 0 0 16px; }
+.campo label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+  margin-bottom: 7px;
+}
+.campo input {
+  width: 100%;
+  background: var(--fundo-alto);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio);
+  color: var(--tinta);
+  font: 400 15px/1.4 var(--sans);
+  padding: 12px 13px;
+  transition: border-color .18s, background .2s;
+}
+.campo input::placeholder { color: #6f6152; }
+.campo input:focus { border-color: var(--latao); background: var(--papel-alto); }
+.campo small { display: block; margin-top: 7px; font-size: 12px; color: var(--tinta-3); }
+input:-webkit-autofill {
+  -webkit-text-fill-color: var(--tinta);
+  -webkit-box-shadow: 0 0 0 1000px var(--fundo-alto) inset;
+}
+.consentimento {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13px;
+  color: var(--tinta-2);
+  margin: 4px 0 20px;
+  cursor: pointer;
+}
+.consentimento input { margin-top: 3px; width: 16px; height: 16px; flex: none; accent-color: var(--latao); }
+
+.btn-largo { width: 100%; justify-content: center; }
+.btn {
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+}
+.quadro-agendar h3 { font-size: 26px; margin: 0 0 14px; }
+.quadro-agendar .btn-texto { width: 100%; justify-content: center; }
+.selo-status.central { justify-content: center; display: flex; margin: 22px 0 0; }
+
 /* --------------------------------------------------------------- animação */
 /* Sem animação de entrada por rolagem: o conteúdo precisa sair visível em print
    de página inteira, impressão e PDF (opacity 0 quebraria esses casos). */

@@ -10,8 +10,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<!-- Composição B do mesmo design system: "placa". Mesmo conteúdo da home A,
-     composição centralizada (letreiro de barbearia). Comparar com index.html. -->
+<!-- Composição B do mesmo design system: "placa". Mesmo conteúdo e mesmas
+     dinâmicas da home A (relógio, grade calculada, agendamento em 3 passos),
+     com composição centralizada. Comparar com index.html. -->
 </head>
 <body class="composicao-placa">
 
@@ -21,7 +22,7 @@
     <nav class="nav" id="nav">
       <a href="#servicos">Serviços</a>
       <a href="#equipe">Quem corta</a>
-      <a href="#contato">Onde fica</a>
+      <a href="#contato">Agendar</a>
     </nav>
     <a class="btn btn-vazado" href="#contato">Agendar</a>
     <button class="menu-botao" id="menuBotao" aria-label="Abrir menu" aria-expanded="false" aria-controls="nav">
@@ -46,6 +47,7 @@
           <a class="btn btn-cheio" href="#contato">Agendar horário</a>
           <a class="btn btn-texto" href="#servicos">Ver serviços e preços</a>
         </div>
+        <p class="selo-status central" id="seloStatus"><i></i><span>carregando…</span></p>
         <div class="divisor-poste">
           <svg class="poste" viewBox="0 0 18 30" width="15" height="26" aria-hidden="true">
             <defs><clipPath id="posteClipeB"><rect x="2" y="2" width="14" height="26" rx="7"/></clipPath></defs>
@@ -64,10 +66,10 @@
   <section class="faixa">
     <div class="limite">
       <ul>
-        <li><dt>Segunda a quinta</dt><dd>09:00 — 19:00</dd></li>
-        <li><dt>Sexta</dt><dd>09:00 — 20:00</dd></li>
-        <li><dt>Sábado</dt><dd>08:00 — 18:00</dd></li>
-        <li class="fechado"><dt>Domingo</dt><dd>Fechado</dd></li>
+        <li data-dias="1,2,3,4"><dt>Segunda a quinta</dt><dd>09:00 — 19:00</dd></li>
+        <li data-dias="5"><dt>Sexta</dt><dd>09:00 — 20:00</dd></li>
+        <li data-dias="6"><dt>Sábado</dt><dd>08:00 — 18:00</dd></li>
+        <li data-dias="0" class="fechado"><dt>Domingo</dt><dd>Fechado</dd></li>
       </ul>
     </div>
   </section>
@@ -76,31 +78,31 @@
     <div class="limite">
       <div class="cabeca-secao"><h2>Serviços</h2></div>
       <ul class="menu-servicos">
-        <li><a href="#contato">
+        <li><a href="#contato" data-servico="Corte masculino" data-min="30" data-preco="R$ 45" data-prof="rafael bruno">
           <span class="nome">Corte masculino</span><span class="guia"></span>
           <span class="dur">30 min</span><span class="preco">R$ 45</span>
         </a></li>
-        <li><a href="#contato">
+        <li><a href="#contato" data-servico="Barba na navalha" data-min="30" data-preco="R$ 35" data-prof="rafael diego">
           <span class="nome">Barba na navalha</span><span class="guia"></span>
           <span class="dur">30 min</span><span class="preco">R$ 35</span>
         </a></li>
-        <li><a href="#contato">
+        <li><a href="#contato" data-servico="Corte + barba" data-min="60" data-preco="R$ 70" data-prof="rafael diego">
           <span class="nome">Corte + barba</span><span class="guia"></span>
           <span class="dur">1 h</span><span class="preco">R$ 70</span>
         </a></li>
-        <li><a href="#contato">
+        <li><a href="#contato" data-servico="Degradê navalhado" data-min="45" data-preco="R$ 55" data-prof="rafael">
           <span class="nome">Degradê navalhado</span><span class="guia"></span>
           <span class="dur">45 min</span><span class="preco">R$ 55</span>
         </a></li>
-        <li><a href="#contato">
+        <li><a href="#contato" data-servico="Sobrancelha na navalha" data-min="15" data-preco="R$ 20" data-prof="bruno diego">
           <span class="nome">Sobrancelha na navalha</span><span class="guia"></span>
           <span class="dur">15 min</span><span class="preco">R$ 20</span>
         </a></li>
-        <li><a href="#contato">
+        <li><a href="#contato" data-servico="Corte infantil" data-min="30" data-preco="R$ 40" data-prof="bruno">
           <span class="nome">Corte infantil</span><span class="guia"></span>
           <span class="dur">30 min</span><span class="preco">R$ 40</span>
         </a></li>
-        <li><a href="#contato">
+        <li><a href="#contato" data-servico="Platinado" data-min="90" data-preco="R$ 180" data-prof="diego">
           <span class="nome">Platinado</span><span class="guia"></span>
           <span class="dur">1 h 30</span><span class="preco">R$ 180</span>
         </a></li>
@@ -144,11 +146,51 @@
           <li><span class="campo">Instagram</span><span>@barbeariamagnum</span></li>
         </ul>
       </div>
-      <div class="quadro-agendar">
-        <h3>Marque seu horário</h3>
-        <p>Cancele ou mude o horário pelo próprio site até 2 horas antes do atendimento.</p>
-        <a class="btn btn-cheio" href="#servicos">Agendar agora</a>
-        <a class="btn btn-texto" href="#servicos">Falar no WhatsApp</a>
+
+      <div class="quadro-agendar" id="quadro" data-estado="escolha">
+        <div id="passo-escolha">
+          <p class="rotulo">Agendamento · passo 2 de 3</p>
+          <h3>Escolha o barbeiro e o horário</h3>
+          <p class="resumo-servico fraco" id="resumoServico">
+            Nenhum serviço escolhido ainda — toque em um serviço na lista acima.
+          </p>
+          <p class="rotulo">Barbeiro</p>
+          <div class="chips" id="chipsProf"></div>
+          <p class="rotulo">Horários de hoje</p>
+          <div class="chips" id="chipsHora"></div>
+          <p class="aviso" id="avisoVazio" hidden></p>
+          <button class="btn btn-cheio btn-largo" id="btnContinuar" disabled>Escolha um serviço</button>
+        </div>
+        <div id="passo-confirmar" hidden>
+          <p class="rotulo">Agendamento · passo 3 de 3</p>
+          <h3>Confirme seus dados</h3>
+          <p class="resumo-escolha" id="resumoEscolha"></p>
+          <div class="campo">
+            <label for="campoNome">Nome</label>
+            <input id="campoNome" name="nome" autocomplete="name" placeholder="Como devemos te chamar">
+          </div>
+          <div class="campo">
+            <label for="campoTelefone">Telefone com DDD</label>
+            <input id="campoTelefone" name="telefone" inputmode="tel" autocomplete="tel" placeholder="(13) 90000-0000">
+          </div>
+          <div class="campo">
+            <label for="campoPin">PIN de 4 dígitos</label>
+            <input id="campoPin" name="pin" inputmode="numeric" maxlength="6" placeholder="••••">
+          </div>
+          <label class="consentimento">
+            <input type="checkbox" id="campoConsentimento">
+            <span>Aceito os termos e a política de privacidade.</span>
+          </label>
+          <button class="btn btn-cheio btn-largo" id="btnConfirmar">Confirmar agendamento</button>
+          <button class="btn btn-texto" id="btnVoltar">← voltar e mudar o horário</button>
+        </div>
+        <div id="passo-pronto" hidden>
+          <p class="rotulo">Agendamento na agenda</p>
+          <h3>Horário reservado</h3>
+          <p class="resumo-escolha" id="textoPronto"></p>
+          <a class="btn btn-cheio btn-largo" id="linkWhats" href="#contato" target="_blank" rel="noopener">Falar no WhatsApp</a>
+          <button class="btn btn-texto" id="btnOutro">Fazer outro agendamento</button>
+        </div>
       </div>
     </div>
   </section>

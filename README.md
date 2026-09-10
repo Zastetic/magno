@@ -4,7 +4,7 @@ Agendamento online para barbearia: o cliente escolhe serviço, profissional, dia
 a loja vê e administra os próximos atendimentos em formato de agenda.
 
 - **Produção:** https://magnum.autoava.us
-- **Local:** http://127.0.0.1:8100
+- **Local:** http://127.0.0.1:8100 (systemd: `magno-server`, `magno-tunnel`)
 - **Stack:** FastAPI + SQLite + SPA servida pelo próprio backend (mesma origem)
 - **Hospedagem:** WSL + `systemd --user` + Cloudflare Tunnel (mesmo esquema do autoava.us)
 
@@ -59,9 +59,9 @@ data/    magno.db + backups (fora do git)
 
 ## Status
 
-**Planejamento fechado.** As 5 decisões de `docs/03-DECISOES.md` foram respondidas pelo Okai
-(login por telefone+PIN, site institucional com catálogo editável, SPA vanilla, agenda por
-profissional, lembretes por .ics/WhatsApp manual). Pronto para a **F0** do backlog.
+**F0 fechada** e a **home institucional pronta** (`web/index.html`, com variante em
+`web/index-b.html`). Planejamento completo em `docs/`. Próximo passo do sistema: **F1**
+(login por telefone + PIN, token revogável, rate limit e papéis).
 
-Falta só uma ação do Okai no painel Cloudflare para o deploy (Public Hostname
-`magnum.autoava.us` → `127.0.0.1:8100`) — o código pode começar antes disso.
+O deploy está a **um passo no painel Cloudflare**: Public Hostname `magnum.autoava.us` →
+`HTTP 127.0.0.1:8100`. Servidor e túnel já rodam como serviço (`docs/05-DEPLOY.md`).

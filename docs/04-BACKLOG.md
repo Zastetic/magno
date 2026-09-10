@@ -71,14 +71,16 @@ Porta 8100 · banco `data/magno.db` (testes usam `MAGNO_DB=/tmp/test-magno.db`).
 - [ ] Backup diário (`scripts/backup.sh` + cronjob Hermes `no_agent`)
 - **Pronto quando:** suíte completa verde + navegação do fluxo inteiro no celular sem zoom.
 
-## F7 — Deploy
-- [ ] `~/.config/systemd/user/magno-server.service` + `magno-tunnel.service` (token do conector, `--token-file`)
-- [ ] Ativar: `systemctl --user enable --now magno-server magno-tunnel` (com `XDG_RUNTIME_DIR=/run/user/1000`)
-- [ ] Public Hostname `magnum.autoava.us` → `HTTP 127.0.0.1:8100` no painel Cloudflare (ação do Okai)
-- [ ] Conferir `Updated to new configuration` + `Registered tunnel connection` no log
+## F7 — Deploy (parcial: falta 1 passo no painel)
+- [x] `~/.config/systemd/user/magno-server.service` + `magno-tunnel.service` (token do conector, `--token-file`)
+- [x] Ativar: `systemctl --user enable --now magno-server magno-tunnel` — ambos `active` + `enabled`
+- [x] Conector conectado (4 conexões) — log confirma ingress remoto com `autoava.us`/`www.autoava.us`
+- [ ] Public Hostname `magnum.autoava.us` → `HTTP 127.0.0.1:8100` no painel Cloudflare (**ação do Okai**)
 - [ ] `curl -o /dev/null -w "%{http_code}" https://magnum.autoava.us/api/saude` → 200
-- [ ] Criar barbeiro admin real e trocar as senhas de exemplo
-- **Pronto quando:** HTTP 200 no domínio com HTTPS e o agendamento de teste aparece no painel.
+- [ ] Criar o admin real e trocar as credenciais de exemplo
+- **Pronto quando:** HTTP 200 no domínio com HTTPS.
+- Passo a passo, verificação e alternativa por API: `docs/05-DEPLOY.md`
+- Link público temporário para demonstração: `./scripts/demo.sh`
 
 ## Depois da v1 (não fazer agora)
 Confirmação por WhatsApp API, sinal/entrada paga, fidelidade, comissão, estoque de produtos,

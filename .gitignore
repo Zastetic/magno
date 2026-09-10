@@ -1,0 +1,21 @@
+# ambiente e segredos
+.env.local
+.env
+.cloudflared_token
+*.pem
+
+# banco e dados locais
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/backups/
+logs/*.log
+
+# python
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# sistema
+.DS_Store

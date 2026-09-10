@@ -1,0 +1,170 @@
+-- Barbearia Magno — schema v1 (SQLite)
+-- Regras: timestamps em UTC ISO-8601 ('2026-09-10T18:00:00Z'); dinheiro em centavos (inteiro);
+-- telefone em E.164 só dígitos (ex: 5513997630784). SQL 100% parametrizado na aplicação.
+PRAGMA foreign_keys = ON;
+
+-- ---------------------------------------------------------------- pessoas
+CREATE TABLE usuarios (
+  id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome                 TEXT    NOT NULL,
+  telefone             TEXT    NOT NULL UNIQUE,          -- E.164 sem '+'  (login do cliente)
+  email                TEXT,
+  senha_hash           TEXT    NOT NULL,                 -- pbkdf2_sha256$iter$salt$hash
+  papel                TEXT    NOT NULL DEFAULT 'cliente'
+                               CHECK (papel IN ('cliente','barbeiro','admin')),
+  ativo                INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0,1)),
+  consentimento_lgpd_em TEXT,                            -- data do aceite (LGPD)
+  anonimizado_em       TEXT,                             -- preenchido na exclusão de conta
+  criado_em            TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+  atualizado_em        TEXT
+);
+CREATE INDEX idx_usuarios_papel ON usuarios(papel, ativo);
+
+-- profissional = usuario com papel barbeiro (1:1). Tabela separada para perfil público.
+CREATE TABLE profissionais (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER NOT NULL UNIQUE REFERENCES usuarios(id) ON DELETE CASCADE,
+  apelido    TEXT,
+  bio        TEXT,
+  foto_url   TEXT,
+  ordem      INTEGER NOT NULL DEFAULT 0,
+  ativo      INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0,1))
+);
+
+-- ---------------------------------------------------------------- catálogo
+CREATE TABLE servicos (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome           TEXT    NOT NULL,
+  descricao      TEXT,
+  duracao_min    INTEGER NOT NULL CHECK (duracao_min BETWEEN 5 AND 480),
+  preco_centavos INTEGER NOT NULL CHECK (preco_centavos >= 0),
+  imagem_url     TEXT,
+  ordem          INTEGER NOT NULL DEFAULT 0,
+  ativo          INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0,1)),
+  criado_em      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+
+-- quais profissionais executam quais serviços (N:N)
+CREATE TABLE servico_profissional (
+  servico_id      INTEGER NOT NULL REFERENCES servicos(id) ON DELETE CASCADE,
+  profissional_id INTEGER NOT NULL REFERENCES profissionais(id) ON DELETE CASCADE,
+  PRIMARY KEY (servico_id, profissional_id)
+);
+
+-- ---------------------------------------------------------------- disponibilidade
+-- horário de funcionamento recorrente da loja (0=domingo ... 6=sábado)
+CREATE TABLE horarios (
+  dia_semana INTEGER PRIMARY KEY CHECK (dia_semana BETWEEN 0 AND 6),
+  abre       TEXT NOT NULL,            -- 'HH:MM' local (America/Sao_Paulo)
+  fecha      TEXT NOT NULL,
+  ativo      INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0,1)),
+  CHECK (fecha > abre)
+);
+
+-- exceções por data (feriado fechado / horário especial)
+CREATE TABLE excecoes (
+  id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  data    TEXT NOT NULL UNIQUE,        -- 'YYYY-MM-DD' local
+  fechado INTEGER NOT NULL DEFAULT 1 CHECK (fechado IN (0,1)),
+  abre    TEXT,
+  fecha   TEXT,
+  motivo  TEXT
+);
+
+-- indisponibilidade pontual de um profissional (almoço, folga, curso)
+CREATE TABLE bloqueios (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  profissional_id INTEGER NOT NULL REFERENCES profissionais(id) ON DELETE CASCADE,
+  inicio          TEXT NOT NULL,       -- UTC ISO
+  fim             TEXT NOT NULL,
+  motivo          TEXT,
+  criado_em       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+  CHECK (fim > inicio)
+);
+CREATE INDEX idx_bloqueios_prof ON bloqueios(profissional_id, inicio);
+
+-- ---------------------------------------------------------------- agenda
+CREATE TABLE agendamentos (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  codigo             TEXT    NOT NULL UNIQUE,          -- id público (link/consulta/ics)
+  cliente_id         INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+  profissional_id    INTEGER NOT NULL REFERENCES profissionais(id),
+  servico_id         INTEGER NOT NULL REFERENCES servicos(id),
+  inicio             TEXT    NOT NULL,                 -- UTC ISO
+  fim                TEXT    NOT NULL,                 -- UTC ISO (inclui buffer)
+  duracao_min        INTEGER NOT NULL,                 -- snapshots (preço/duração não mudam depois)
+  preco_centavos     INTEGER NOT NULL,
+  status             TEXT    NOT NULL DEFAULT 'agendado'
+                             CHECK (status IN ('agendado','confirmado','concluido',
+                                               'cancelado_cliente','cancelado_loja','nao_compareceu')),
+  observacao         TEXT,                             -- pedido do cliente (ex: "máquina 2")
+  origem             TEXT    NOT NULL DEFAULT 'cliente' CHECK (origem IN ('cliente','loja')),
+  criado_em          TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+  atualizado_em      TEXT,
+  cancelado_em       TEXT,
+  cancelado_por      INTEGER REFERENCES usuarios(id),
+  motivo_cancelamento TEXT,
+  CHECK (fim > inicio)
+);
+CREATE INDEX idx_ag_prof_inicio  ON agendamentos(profissional_id, inicio);
+CREATE INDEX idx_ag_cliente      ON agendamentos(cliente_id, inicio DESC);
+CREATE INDEX idx_ag_status_inicio ON agendamentos(status, inicio);
+-- trava dura contra overbooking: um profissional não tem dois atendimentos no mesmo instante
+CREATE UNIQUE INDEX idx_ag_slot_unico
+  ON agendamentos(profissional_id, inicio)
+  WHERE status IN ('agendado','confirmado','concluido');
+
+-- ---------------------------------------------------------------- sessões e auditoria
+CREATE TABLE sessoes (
+  token_hash TEXT PRIMARY KEY,        -- sha256(token) — o token em claro nunca é gravado
+  usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  criada_em  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+  expira_em  TEXT NOT NULL,
+  revogada_em TEXT,
+  ip         TEXT,
+  user_agent TEXT
+);
+CREATE INDEX idx_sessoes_usuario ON sessoes(usuario_id);
+
+CREATE TABLE eventos (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  tipo        TEXT NOT NULL,          -- agendamento.criado, agendamento.cancelado, usuario.excluido...
+  ator_id     INTEGER REFERENCES usuarios(id),
+  agendamento_id INTEGER,
+  payload     TEXT,                   -- JSON
+  criado_em   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+CREATE INDEX idx_eventos_tipo ON eventos(tipo, criado_em DESC);
+
+-- ---------------------------------------------------------------- configurações
+CREATE TABLE configuracoes (
+  chave  TEXT PRIMARY KEY,
+  valor  TEXT NOT NULL,
+  descricao TEXT
+);
+
+-- ---------------------------------------------------------------- seed (idempotente)
+INSERT OR IGNORE INTO configuracoes (chave, valor, descricao) VALUES
+  ('slot_min',              '30',                    'Granularidade da grade, em minutos'),
+  ('buffer_min',            '5',                     'Intervalo entre atendimentos'),
+  ('antecedencia_min_h',    '1',                     'Antecedência mínima para agendar'),
+  ('janela_dias',           '60',                    'Máximo de dias à frente exibidos ao cliente'),
+  ('cancelamento_limite_h', '2',                     'Prazo mínimo para o cliente cancelar/remarcar'),
+  ('fuso',                  'America/Sao_Paulo',     'Fuso de exibição'),
+  ('loja_nome',             'Barbearia Magno',       'Nome exibido no site'),
+  ('loja_telefone',         '',                      'WhatsApp da loja (E.164)'),
+  ('loja_endereco',         '',                      'Endereço exibido no site'),
+  ('loja_instagram',        '',                      'Instagram exibido no site'),
+  ('loja_sobre',            '',                      'Texto institucional da home'),
+  ('site_publico',          '1',                     'Site institucional no ar (1/0)');
+
+INSERT OR IGNORE INTO horarios (dia_semana, abre, fecha, ativo) VALUES
+  (0,'09:00','13:00',0),   -- domingo fechado
+  (1,'09:00','19:00',1),(2,'09:00','19:00',1),(3,'09:00','19:00',1),
+  (4,'09:00','19:00',1),(5,'09:00','20:00',1),(6,'08:00','18:00',1);
+
+INSERT OR IGNORE INTO servicos (id, nome, descricao, duracao_min, preco_centavos, ordem) VALUES
+  (1,'Corte masculino','Corte na tesoura ou máquina, finalização com pomada.',30,4500,1),
+  (2,'Barba','Barba na navalha com toalha quente.',30,3500,2),
+  (3,'Corte + barba','Combo completo.',60,7000,3),
+  (4,'Degradê navalhado','Fade com acabamento na navalha.',45,5500,4);

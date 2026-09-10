@@ -144,6 +144,25 @@
   var ano = document.getElementById("ano");
   if (ano) ano.textContent = String(new Date().getFullYear());
 
+  /* ------------------------------------------------ quem está logado agora */
+  // Se houver sessão, o link do topo vira o nome da pessoa e leva para a conta.
+  var linkConta = document.getElementById("linkConta");
+  if (linkConta) {
+    var token = "";
+    try { token = sessionStorage.getItem("magno_token") || ""; } catch (e) { token = ""; }
+    if (token) {
+      fetch("/api/auth/me", { headers: { Authorization: "Bearer " + token } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d || !d.usuario) return;
+          var primeiro = String(d.usuario.nome || "").trim().split(/\s+/)[0];
+          linkConta.textContent = primeiro ? "Olá, " + primeiro : "Minha conta";
+          linkConta.href = "conta.html";
+        })
+        .catch(function () { /* sem sessão válida: segue como "Entrar" */ });
+    }
+  }
+
   /* ------------------------------------------- cartão vivo: status + relógio */
   var horaHoje = document.getElementById("horaHoje");
   var selo = document.getElementById("seloStatus");

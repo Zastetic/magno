@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minha conta — Barbearia Magnum</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 30'%3E%3Crect x='2' y='2' width='14' height='26' rx='7' fill='none' stroke='%23c69347' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="composicao-editorial">
+
+<header class="topo">
+  <div class="limite">
+    <a class="marca" href="./">
+      <svg class="poste" viewBox="0 0 18 30" aria-hidden="true">
+        <defs><clipPath id="posteClipeC"><rect x="2" y="2" width="14" height="26" rx="7"/></clipPath></defs>
+        <g clip-path="url(#posteClipeC)" stroke="var(--latao)" stroke-width="1.5" opacity=".85">
+          <line x1="-1" y1="12" x2="19" y2="4"/>
+          <line x1="-1" y1="20" x2="19" y2="12"/>
+          <line x1="-1" y1="28" x2="19" y2="20"/>
+        </g>
+        <rect x="2" y="2" width="14" height="26" rx="7" fill="none" stroke="var(--latao)" stroke-width="1.5"/>
+      </svg>
+      Magnum <small>Barbearia</small>
+    </a>
+    <nav class="nav" id="nav">
+      <a href="./">Agendar um horário</a>
+    </nav>
+  </div>
+</header>
+
+<main class="painel-conta">
+  <div class="limite">
+    <div class="cartao-conta" id="cartao" hidden>
+      <div class="identidade">
+        <div class="avatar" id="avatar">M</div>
+        <div>
+          <h1 id="nomeUsuario">—</h1>
+          <p id="detalheUsuario"></p>
+        </div>
+      </div>
+
+      <p class="aviso" id="aviso" hidden></p>
+
+      <!-- conta do Google sem telefone: a barbearia precisa do número -->
+      <form id="formTelefone" hidden novalidate>
+        <p class="rotulo">Falta seu telefone</p>
+        <p class="resumo-escolha">
+          Sua conta entrou pelo Google, então ainda não temos seu número. A barbearia usa o
+          telefone para confirmar o atendimento.
+        </p>
+        <div class="campo">
+          <label for="telefone">Telefone com DDD</label>
+          <input id="telefone" inputmode="tel" autocomplete="tel" placeholder="(13) 99763-0784">
+        </div>
+        <button class="btn btn-cheio btn-largo" type="submit">Salvar telefone</button>
+      </form>
+
+      <p class="rotulo">Meus agendamentos</p>
+      <div class="bloco-vazio" id="semAgendamentos">
+        Nenhum agendamento ainda.<br>
+        <a href="./#contato" class="btn btn-texto">Marcar um horário</a>
+      </div>
+
+      <hr>
+      <button class="btn btn-vazado" id="btnSair" type="button">Sair da conta</button>
+    </div>
+
+    <div class="cartao-conta" id="carregando">
+      <p class="rotulo">Minha conta</p>
+      <p class="linha-fina">Carregando…</p>
+    </div>
+  </div>
+</main>
+
+<footer class="rodape">
+  <div class="limite">
+    <p>© <span id="ano">2026</span> Barbearia Magnum</p>
+  </div>
+</footer>
+
+<script src="auth.js" defer></script>
+<script src="conta.js" defer></script>
+</body>
+</html>

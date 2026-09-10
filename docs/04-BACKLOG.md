@@ -18,14 +18,21 @@ Porta 8100 · banco `data/magno.db` (testes usam `MAGNO_DB=/tmp/test-magno.db`).
 - ⚠️ Observado: o boot leva ~15 s porque o venv e o código estão em `/mnt/d` (9p). Opcional depois:
   criar o venv em `~/.local/share/magno/venv` para reload rápido — não é bloqueio.
 
-## F1 — Auth e segurança
-- [ ] `server/auth.py`: `pbkdf2_sha256`, token opaco (`sha256` no banco), TTL 24 h, logout revogando
-- [ ] Rate limit + lockout no login (5 falhas / 15 min por telefone+IP) + PIN trivial recusado no cadastro
-- [ ] Middlewares: headers de segurança, CSP, limite de corpo 1 MB, `Cache-Control: no-store` em `/api`
-- [ ] Dependências `get_usuario` / `require_papel("barbeiro"|"admin")`
-- [ ] Rotas: `/api/auth/cadastro`, `/login`, `/logout`, `/me` + validação/normalização de telefone E.164
-- [ ] Testes: cadastro, login, PIN trivial recusado, token expirado (`MAGNO_TOKEN_TTL_MIN=0`), logout revoga, lockout, papéis
-- **Pronto quando:** suíte de auth verde e rota de admin devolve 403 para cliente.
+## F1 — Auth e segurança ✅ (fechada 2026-09-10)
+- [x] `server/auth.py`: `pbkdf2_sha256`, token opaco (`sha256` no banco), TTL 24 h, logout revogando
+- [x] Rate limit + lockout no login (5 falhas / 15 min por telefone+IP) + PIN trivial recusado no cadastro
+- [x] Middlewares: headers de segurança, CSP, limite de corpo 1 MB, `Cache-Control: no-store` em `/api`
+- [x] Dependências `get_usuario` / `require_papel("barbeiro"|"admin")`
+- [x] Rotas: `/api/auth/cadastro`, `/login`, `/logout`, `/me`, `/telefone` + normalização de telefone E.164
+- [x] **Login com Google** (`server/google_auth.py`): OAuth authorization code, `state` de uso único,
+      vínculo por e-mail, provedor de teste local (`GOOGLE_FAKE`) — falta só colar as credenciais
+- [x] Telas `/entrar.html` e `/conta.html` no mesmo design; cabeçalho do site cumprimenta quem está logado
+- [x] Testes: 71 no servidor (auth, google, migração) + 28 verificações de browser
+- **Bugs reais achados pelos testes:** (1) o lockout nunca disparava — o contador era zerado a cada
+  tentativa; (2) e-mail repetido estourava 500 em vez de 409; (3) o "já estou logado" rodava também
+  na página da conta e causava loop de recarregamento.
+- **Pronto quando:** suíte de auth verde e rota de admin devolve 403 para cliente. ✅
+- Passo a passo das credenciais do Google: `docs/06-LOGIN.md`
 
 ## F2 — Catálogo + site institucional (a parte que não é agenda)
 - [x] Home institucional **interativa** (antecipada para a apresentação): relógio da loja,

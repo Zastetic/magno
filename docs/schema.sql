@@ -1,24 +1,38 @@
--- Barbearia Magno — schema v1 (SQLite)
+-- Barbearia Magno — schema v2 (SQLite)
 -- Regras: timestamps em UTC ISO-8601 ('2026-09-10T18:00:00Z'); dinheiro em centavos (inteiro);
 -- telefone em E.164 só dígitos (ex: 5513997630784). SQL 100% parametrizado na aplicação.
+--
+-- v2 (login): usuarios passa a aceitar duas formas de entrada — telefone+PIN (cliente da loja)
+-- ou Google (login social). Por isso `telefone` e `senha_hash` são NULÁVEIS e `google_sub`
+-- guarda o identificador do Google. A regra "todo usuário tem como entrar" virou CHECK.
 PRAGMA foreign_keys = ON;
 
 -- ---------------------------------------------------------------- pessoas
 CREATE TABLE IF NOT EXISTS usuarios (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
   nome                 TEXT    NOT NULL,
-  telefone             TEXT    NOT NULL UNIQUE,          -- E.164 sem '+'  (login do cliente)
-  email                TEXT,
-  senha_hash           TEXT    NOT NULL,                 -- pbkdf2_sha256$iter$salt$hash
+  telefone             TEXT    UNIQUE,         -- E.164 sem '+' — login do cliente (NULL em conta só-Google)
+  email                TEXT,                   -- e-mail (obrigatório no login Google); único quando existe
+  senha_hash           TEXT,                   -- PIN do cliente (NULL em conta só-Google)
+  google_sub           TEXT,                   -- 'sub' do Google (NULL em conta só-telefone)
+  foto_url             TEXT,                   -- foto do perfil Google
   papel                TEXT    NOT NULL DEFAULT 'cliente'
                                CHECK (papel IN ('cliente','barbeiro','admin')),
   ativo                INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0,1)),
-  consentimento_lgpd_em TEXT,                            -- data do aceite (LGPD)
-  anonimizado_em       TEXT,                             -- preenchido na exclusão de conta
+  consentimento_lgpd_em TEXT,                  -- data do aceite (LGPD)
+  anonimizado_em       TEXT,                   -- preenchido na exclusão de conta
+  ultimo_login_em      TEXT,
   criado_em            TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
-  atualizado_em        TEXT
+  atualizado_em        TEXT,
+  -- sem PIN e sem Google a conta não teria como entrar
+  CHECK (senha_hash IS NOT NULL OR google_sub IS NOT NULL)
 );
 CREATE INDEX IF NOT EXISTS idx_usuarios_papel ON usuarios(papel, ativo);
+-- um e-mail só pode pertencer a uma conta (ignorando maiúsculas); NULLs não contam
+CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_email
+  ON usuarios(lower(email)) WHERE email IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_google
+  ON usuarios(google_sub) WHERE google_sub IS NOT NULL;
 
 -- profissional = usuario com papel barbeiro (1:1). Tabela separada para perfil público.
 CREATE TABLE IF NOT EXISTS profissionais (
@@ -126,9 +140,18 @@ CREATE TABLE IF NOT EXISTS sessoes (
 );
 CREATE INDEX IF NOT EXISTS idx_sessoes_usuario ON sessoes(usuario_id);
 
+-- estados temporários do login Google (proteção CSRF): o `state` vive aqui até o retorno
+CREATE TABLE IF NOT EXISTS logins_pendentes (
+  state      TEXT PRIMARY KEY,
+  criado_em  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+  expira_em  TEXT NOT NULL,
+  destino    TEXT,
+  ip         TEXT
+);
+
 CREATE TABLE IF NOT EXISTS eventos (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  tipo        TEXT NOT NULL,          -- agendamento.criado, agendamento.cancelado, usuario.excluido...
+  tipo        TEXT NOT NULL,          -- agendamento.criado, usuario.excluido, login.google...
   ator_id     INTEGER REFERENCES usuarios(id),
   agendamento_id INTEGER,
   payload     TEXT,                   -- JSON

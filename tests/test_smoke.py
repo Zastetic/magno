@@ -22,10 +22,10 @@ def test_schema_aplica_e_e_idempotente():
     assert segunda["servicos"] == 4, "seed de serviços duplicou"
 
 
-def test_banco_tem_as_11_tabelas_e_os_indices():
+def test_banco_tem_as_tabelas_e_os_indices():
     resumo = db.resumo()
-    assert resumo["tabelas"] == 11
-    assert resumo["indices"] == 8
+    assert resumo["tabelas"] == 12          # 11 de domínio + logins_pendentes (state do OAuth)
+    assert resumo["indices"] == 10
     assert resumo["integridade"] == "ok"
 
 

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrar — Barbearia Magnum</title>
+<meta name="description" content="Entre para ver, remarcar ou cancelar seus agendamentos na Barbearia Magnum.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 30'%3E%3Crect x='2' y='2' width='14' height='26' rx='7' fill='none' stroke='%23c69347' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="composicao-editorial">
+
+<header class="topo">
+  <div class="limite">
+    <a class="marca" href="./">
+      <svg class="poste" viewBox="0 0 18 30" aria-hidden="true">
+        <defs><clipPath id="posteClipeL"><rect x="2" y="2" width="14" height="26" rx="7"/></clipPath></defs>
+        <g clip-path="url(#posteClipeL)" stroke="var(--latao)" stroke-width="1.5" opacity=".85">
+          <line x1="-1" y1="12" x2="19" y2="4"/>
+          <line x1="-1" y1="20" x2="19" y2="12"/>
+          <line x1="-1" y1="28" x2="19" y2="20"/>
+        </g>
+        <rect x="2" y="2" width="14" height="26" rx="7" fill="none" stroke="var(--latao)" stroke-width="1.5"/>
+      </svg>
+      Magnum <small>Barbearia</small>
+    </a>
+    <nav class="nav" id="nav"><a href="./">Voltar ao site</a></nav>
+  </div>
+</header>
+
+<main class="tela-auth">
+  <div class="limite">
+    <div class="auth-caixa">
+      <p class="kicker">Área do cliente</p>
+      <h1 id="titulo">Entrar</h1>
+      <p class="linha-fina" id="subtitulo">
+        Veja seus agendamentos, remarque ou cancele sem precisar ligar.
+      </p>
+
+      <div class="abas">
+        <button class="aba ativa" id="abaEntrar" type="button">Entrar</button>
+        <button class="aba" id="abaCriar" type="button">Criar conta</button>
+      </div>
+
+      <!-- ------------------------------------------------ entrar -->
+      <form class="form-auth" id="formEntrar" novalidate>
+        <div class="campo">
+          <label for="loginTelefone">Telefone com DDD</label>
+          <input id="loginTelefone" name="telefone" inputmode="tel" autocomplete="tel"
+                 placeholder="(13) 99763-0784">
+        </div>
+        <div class="campo">
+          <label for="loginPin">PIN</label>
+          <input id="loginPin" name="pin" type="password" inputmode="numeric"
+                 autocomplete="current-password" maxlength="6" placeholder="••••">
+        </div>
+        <button class="btn btn-cheio btn-largo" type="submit">Entrar</button>
+      </form>
+
+      <!-- ------------------------------------------------ criar conta -->
+      <form class="form-auth" id="formCriar" hidden novalidate>
+        <div class="campo">
+          <label for="criarNome">Nome</label>
+          <input id="criarNome" name="nome" autocomplete="name" placeholder="Como devemos te chamar">
+        </div>
+        <div class="campo">
+          <label for="criarTelefone">Telefone com DDD</label>
+          <input id="criarTelefone" name="telefone" inputmode="tel" autocomplete="tel"
+                 placeholder="(13) 99763-0784">
+        </div>
+        <div class="campo">
+          <label for="criarPin">Crie um PIN</label>
+          <input id="criarPin" name="pin" type="password" inputmode="numeric" maxlength="6"
+                 placeholder="4 a 6 dígitos" aria-describedby="dicaPin">
+          <small id="dicaPin">Esse PIN é a sua senha aqui. Não é para ser fácil de adivinhar.</small>
+        </div>
+        <div class="campo">
+          <label for="criarEmail">E-mail (opcional)</label>
+          <input id="criarEmail" name="email" type="email" autocomplete="email" placeholder="para receber o comprovante">
+        </div>
+        <label class="consentimento">
+          <input type="checkbox" id="criarConsentimento">
+          <span>Aceito os <a href="#">termos</a> e a <a href="#">política de privacidade</a>.</span>
+        </label>
+        <button class="btn btn-cheio btn-largo" type="submit">Criar conta e entrar</button>
+      </form>
+
+      <p class="aviso" id="aviso" hidden></p>
+
+      <div class="separador">ou</div>
+
+      <a class="btn btn-vazado btn-google btn-largo" id="btnGoogle" href="/api/auth/google/iniciar">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M21.5 12.2c0-.7-.06-1.2-.18-1.8H12v3.4h5.4c-.11.9-.7 2.2-2 3.1l-.02.1 2.9 2.2.2.02c1.85-1.7 2.92-4.2 2.92-7.04Z"/>
+          <path d="M12 21.5c2.7 0 4.96-.9 6.6-2.4l-3.1-2.4c-.85.6-2 1.02-3.5 1.02a6 6 0 0 1-5.68-4.1l-.09.01-3 2.3-.03.09A10 10 0 0 0 12 21.5Z"/>
+          <path d="M6.32 13.6a6.2 6.2 0 0 1-.03-3.9l-.01-.1-3.03-2.35-.1.05A10 10 0 0 0 2.5 12c0 1.6.38 3.1 1.05 4.4l2.77-2.8Z"/>
+          <path d="M12 5.9c1.9 0 3.2.83 3.94 1.52l2.87-2.8A10 10 0 0 0 12 2.5 10 10 0 0 0 3.1 7.3l2.77 2.8A6.1 6.1 0 0 1 12 5.9Z"/>
+        </svg>
+        Entrar com Google
+      </a>
+
+      <p class="dica">
+        Ainda não tem conta? É só digitar o telefone e criar um PIN — leva 20 segundos.
+      </p>
+    </div>
+  </div>
+</main>
+
+<footer class="rodape">
+  <div class="limite">
+    <p>© <span id="ano">2026</span> Barbearia Magnum</p>
+    <nav><a href="status.html">Status do sistema</a></nav>
+  </div>
+</footer>
+
+<script src="auth.js" defer></script>
+</body>
+</html>

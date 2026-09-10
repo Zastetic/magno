@@ -71,10 +71,14 @@ ativos (concluído também ocupa, para não reescrever histórico).
 
 | Método | Rota | Body / Resposta |
 |---|---|---|
-| POST | `/api/auth/cadastro` | `{nome, telefone, email?, senha, consentimento_lgpd}` → `201 {token, usuario}` |
-| POST | `/api/auth/login` | `{telefone, senha}` → `200 {token, usuario}` · `401` genérico · `429` lockout |
+| POST | `/api/auth/cadastro` | `{nome, telefone, pin, email?, consentimento_lgpd}` → `201 {token, usuario}` |
+| POST | `/api/auth/login` | `{telefone, pin}` → `200 {token, usuario}` · `401` genérico · `429` lockout |
 | POST | `/api/auth/logout` | revoga a sessão atual → `204` |
 | GET | `/api/auth/me` | dados do usuário logado + papel → `{id, nome, telefone, papel}` |
+
+**PIN (D16):** 4 a 6 dígitos, só números. No cadastro são recusados PINs triviais
+(`0000`, `1234`, `4321`, sequências, todos os dígitos iguais e igual aos 4–6 últimos dígitos
+do próprio telefone). O PIN é gravado em `pbkdf2_sha256`, nunca em claro.
 
 Login: máx. 5 falhas / 15 min por telefone+IP → `429` com `{"esperar_seg": n}`.
 Mensagem de credencial inválida é sempre a mesma (não revela se o telefone existe).

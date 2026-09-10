@@ -1,7 +1,7 @@
 # Barbearia Magno — Plano mestre (v1)
 
 > **Domínio:** https://magnum.autoava.us · **Pasta:** `~/magno` → `/mnt/d/projetos_wsl/magno`
-> **Status:** planejamento fechado, aguardando 5 decisões do Okai (ver `03-DECISOES.md`)
+> **Status:** planejamento fechado e decidido (5 decisões do Okai aplicadas) — pronto para a F0
 > **Última atualização:** 2026-09-09
 
 ---
@@ -118,8 +118,9 @@ nada hardcoded no código.
     mesmo agendamento (mantém histórico) em vez de criar outro registro.
 14. **Fee/valores:** preço é congelado no agendamento (`preco_centavos`) no momento da
     criação; mudar o preço do serviço depois não reescreve o passado.
-15. **Cliente não logado:** pode navegar e ver disponibilidade; só a confirmação exige
-    cadastro/login (decisão nº 1 define o formato).
+15. **Cliente não logado:** pode navegar e ver disponibilidade; a confirmação exige cadastro
+    — **telefone + PIN de 4 a 6 dígitos** (D16), criado na própria tela de agendamento sem
+    sair do fluxo (nome, telefone, PIN, aceite LGPD).
 
 ---
 
@@ -169,8 +170,10 @@ Admin (PC)       ─┘                │ tunnel cloudflared (connector token)
 
 - Token **opaco** (`secrets.token_urlsafe(32)`), guardado como `sha256` na tabela
   `sessoes`, TTL 24 h, logout revoga de verdade (`revogada_em`).
-- Login: 5 falhas / 15 min → 429 com tempo restante (por telefone+IP). Mensagem genérica
-  (não revela se o telefone existe).
+- Login: **telefone + PIN (4 a 6 dígitos)**, com 5 falhas / 15 min → 429 com tempo restante
+  (por telefone+IP) e mensagem genérica (não revela se o telefone existe). Como o PIN é curto,
+  PINs triviais são recusados no cadastro (`1234`, `0000`, sequência, e igual aos dígitos
+  finais do próprio telefone) — a autorização de verdade é o token de sessão.
 - Headers: `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`,
   `Cache-Control: no-store` em `/api`, HSTS, CSP com `script-src 'self'` (zero handler
   inline) e `style-src 'self' 'unsafe-inline'`.

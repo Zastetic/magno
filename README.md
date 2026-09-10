@@ -53,4 +53,9 @@ data/    magno.db + backups (fora do git)
 
 ## Status
 
-Planejamento fechado. Aguardando as 5 decisões de `docs/03-DECISOES.md` para começar a F0.
+**Planejamento fechado.** As 5 decisões de `docs/03-DECISOES.md` foram respondidas pelo Okai
+(login por telefone+PIN, site institucional com catálogo editável, SPA vanilla, agenda por
+profissional, lembretes por .ics/WhatsApp manual). Pronto para a **F0** do backlog.
+
+Falta só uma ação do Okai no painel Cloudflare para o deploy (Public Hostname
+`magnum.autoava.us` → `127.0.0.1:8100`) — o código pode começar antes disso.

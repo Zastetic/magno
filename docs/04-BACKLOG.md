@@ -15,11 +15,11 @@ Porta 8100 · banco `data/magno.db` (testes usam `MAGNO_DB=/tmp/test-magno.db`).
 
 ## F1 — Auth e segurança
 - [ ] `server/auth.py`: `pbkdf2_sha256`, token opaco (`sha256` no banco), TTL 24 h, logout revogando
-- [ ] Rate limit + lockout no login (5 falhas / 15 min por telefone+IP)
+- [ ] Rate limit + lockout no login (5 falhas / 15 min por telefone+IP) + PIN trivial recusado no cadastro
 - [ ] Middlewares: headers de segurança, CSP, limite de corpo 1 MB, `Cache-Control: no-store` em `/api`
 - [ ] Dependências `get_usuario` / `require_papel("barbeiro"|"admin")`
 - [ ] Rotas: `/api/auth/cadastro`, `/login`, `/logout`, `/me` + validação/normalização de telefone E.164
-- [ ] Testes: cadastro, login, token expirado (`MAGNO_TOKEN_TTL_MIN=0`), logout revoga, lockout, papéis
+- [ ] Testes: cadastro, login, PIN trivial recusado, token expirado (`MAGNO_TOKEN_TTL_MIN=0`), logout revoga, lockout, papéis
 - **Pronto quando:** suíte de auth verde e rota de admin devolve 403 para cliente.
 
 ## F2 — Catálogo + site institucional (a parte que não é agenda)

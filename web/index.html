@@ -77,10 +77,20 @@
         </dl>
       </div>
 
+      <div class="trilho" aria-hidden="true"></div>
+
       <aside class="cartao-hoje">
         <div class="cartao-topo">
-          <p class="rotulo">Hoje na cadeira</p>
-          <p class="relogio"><span id="relogio">--:--</span> <small>horário da loja</small></p>
+          <div>
+            <p class="rotulo">Hoje na cadeira</p>
+            <p class="relogio"><span id="relogio">--:--</span> <small>horário da loja</small></p>
+          </div>
+          <svg class="ponteiro" viewBox="0 0 48 48" aria-hidden="true">
+            <circle cx="24" cy="24" r="21" fill="none" stroke="var(--linha-forte)" stroke-width="1"/>
+            <circle cx="24" cy="24" r="15.5" fill="none" stroke="var(--linha)" stroke-width="1" stroke-dasharray="1 5"/>
+            <line class="agulha" x1="24" y1="24" x2="24" y2="6.5" stroke="var(--latao)" stroke-width="1.4" stroke-linecap="round"/>
+            <circle cx="24" cy="24" r="1.7" fill="var(--latao)"/>
+          </svg>
         </div>
         <p class="hora-grande" id="horaHoje">09:00 — 19:00</p>
         <p class="selo-status" id="seloStatus"><i></i><span>carregando…</span></p>
@@ -97,6 +107,16 @@
           <a href="#contato">Agendar →</a>
         </div>
       </aside>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------- letreiro (movimento) -->
+  <section class="letreiro" aria-label="Serviços da casa">
+    <div class="letreiro-faixa">
+      <span>Corte</span><span>Barba na navalha</span><span>Degradê</span><span>Sobrancelha</span>
+      <span>Corte infantil</span><span>Platinado</span><span>Hora marcada</span><span>Sem fila</span>
+      <span>Corte</span><span>Barba na navalha</span><span>Degradê</span><span>Sobrancelha</span>
+      <span>Corte infantil</span><span>Platinado</span><span>Hora marcada</span><span>Sem fila</span>
     </div>
   </section>
 

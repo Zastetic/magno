@@ -4,6 +4,8 @@
 (function () {
   "use strict";
 
+  var semAnimacao = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
   /* ---------------------------------------------------------------- dados */
   // Horário de funcionamento — mesma tabela de docs/schema.sql (horarios).
   var HORARIOS = {
@@ -471,6 +473,43 @@
 
     mostrarPasso("escolha");
     desenharEscolha();
+  }
+
+  /* ------------------------------------------------- ponteiro (hora real) */
+  var agulha = document.querySelector(".ponteiro .agulha");
+  if (agulha) {
+    var fmtSegundo = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Sao_Paulo", second: "2-digit"
+    });
+    var graus = (parseInt(fmtSegundo.format(new Date()), 10) || 0) * 6;
+    agulha.style.transform = "rotate(" + graus + "deg)";
+    if (!semAnimacao) {
+      // acumula em vez de recalcular: assim a agulha nunca "volta" ao cruzar o 60
+      setInterval(function () {
+        graus += 6;
+        agulha.style.transform = "rotate(" + graus + "deg)";
+      }, 1000);
+    }
+  }
+
+  /* ------------------------------------- revelar ao rolar (só com transform) */
+  // Só os blocos que estão ABAIXO da dobra recebem o deslocamento; e é sempre
+  // transform, nunca opacity — print de página inteira e PDF saem completos.
+  if (!semAnimacao && "IntersectionObserver" in window) {
+    var blocos = [];
+    document.querySelectorAll(".secao > .limite, .barbeiro, .passo").forEach(function (el) {
+      if (el.getBoundingClientRect().top > window.innerHeight * 0.92) blocos.push(el);
+    });
+    blocos.forEach(function (el) { el.classList.add("sobe"); });
+    var obsSobe = new IntersectionObserver(function (entradas) {
+      entradas.forEach(function (e) {
+        if (e.isIntersecting) {
+          e.target.classList.add("visivel");
+          obsSobe.unobserve(e.target);
+        }
+      });
+    }, { rootMargin: "0px 0px -6% 0px", threshold: 0.05 });
+    blocos.forEach(function (el) { obsSobe.observe(el); });
   }
 
   /* ---------------------------------------------------------------- ligar */

@@ -35,14 +35,21 @@ DB_PATH = Path(
 )
 PRAZO_LOCK_S = 5.0
 
-# v2: telefone e senha_hash deixaram de ser obrigatórios (entra quem tem telefone+PIN OU Google).
-# Espelha a definição de `usuarios` em docs/schema.sql — manter as duas juntas.
-DDL_USUARIOS_V2 = """
+# Colunas da tabela usuarios na forma atual (v3). Qualquer banco que não tenha todas, ou que
+# ainda exija telefone/senha, é reconstruído. Espelha docs/schema.sql — manter as duas juntas.
+COLUNAS_USUARIOS = (
+    "id", "nome", "telefone", "email", "email_verificado_em", "senha_hash", "google_sub",
+    "foto_url", "papel", "ativo", "consentimento_lgpd_em", "anonimizado_em",
+    "ultimo_login_em", "criado_em", "atualizado_em",
+)
+
+DDL_USUARIOS_ATUAL = """
 CREATE TABLE usuarios_novo (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
   nome                 TEXT    NOT NULL,
   telefone             TEXT    UNIQUE,
   email                TEXT,
+  email_verificado_em  TEXT,
   senha_hash           TEXT,
   google_sub           TEXT,
   foto_url             TEXT,
@@ -54,7 +61,7 @@ CREATE TABLE usuarios_novo (
   ultimo_login_em      TEXT,
   criado_em            TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
   atualizado_em        TEXT,
-  CHECK (senha_hash IS NOT NULL OR google_sub IS NOT NULL)
+  CHECK (senha_hash IS NOT NULL OR google_sub IS NOT NULL OR email IS NOT NULL)
 )
 """
 
@@ -70,36 +77,36 @@ def conectar() -> sqlite3.Connection:
     return con
 
 
-def migrar(con: sqlite3.Connection) -> bool:
-    """Leva o banco v1 (só telefone+PIN) para o v2 (telefone+PIN ou Google).
+def ja_na_forma_atual(colunas: dict[str, dict]) -> bool:
+    if not set(COLUNAS_USUARIOS) <= set(colunas):
+        return False
+    # telefone e senha precisam ser opcionais (conta só-Google e conta sem senha)
+    return not colunas["telefone"]["notnull"] and not colunas["senha_hash"]["notnull"]
 
-    SQLite não remove NOT NULL por ALTER TABLE, então a tabela é reconstruída
-    preservando ids e dados. ATENÇÃO à ordem: esta migração roda ANTES do
-    schema.sql, senão os índices novos (que citam google_sub) falhariam.
+
+def migrar(con: sqlite3.Connection) -> bool:
+    """Leva qualquer versão antiga de `usuarios` para a forma atual, preservando os dados.
+
+    SQLite não remove NOT NULL nem troca CHECK por ALTER TABLE, então a tabela é
+    reconstruída. As colunas que não existiam no banco antigo entram como NULL.
+    ATENÇÃO à ordem: esta migração roda ANTES do schema.sql, senão os índices novos
+    (que citam colunas novas) falhariam.
     """
-    colunas = {row["name"]: row["notnull"] for row in con.execute("PRAGMA table_info(usuarios)")}
+    colunas = {row["name"]: dict(row) for row in con.execute("PRAGMA table_info(usuarios)")}
     if not colunas:
         return False  # banco novo — o schema.sql já cria na forma atual
-
-    falta_google = "google_sub" not in colunas
-    telefone_obrigatorio = bool(colunas.get("telefone", 0))
-    senha_obrigatoria = bool(colunas.get("senha_hash", 0))
-    if not (falta_google or telefone_obrigatorio or senha_obrigatoria):
+    if ja_na_forma_atual(colunas):
         return False
+
+    presentes = [c for c in COLUNAS_USUARIOS if c in colunas]
+    lista = ", ".join(presentes)
 
     con.commit()  # PRAGMA foreign_keys é ignorado dentro de transação
     con.execute("PRAGMA foreign_keys = OFF")
     con.execute("BEGIN")
     try:
-        con.execute(DDL_USUARIOS_V2)
-        con.execute("""
-            INSERT INTO usuarios_novo
-              (id, nome, telefone, email, senha_hash, google_sub, foto_url, papel, ativo,
-               consentimento_lgpd_em, anonimizado_em, ultimo_login_em, criado_em, atualizado_em)
-            SELECT id, nome, telefone, email, senha_hash, NULL, NULL, papel, ativo,
-                   consentimento_lgpd_em, anonimizado_em, NULL, criado_em, atualizado_em
-              FROM usuarios
-        """)
+        con.execute(DDL_USUARIOS_ATUAL)
+        con.execute(f"INSERT INTO usuarios_novo ({lista}) SELECT {lista} FROM usuarios")
         con.execute("DROP TABLE usuarios")
         con.execute("ALTER TABLE usuarios_novo RENAME TO usuarios")
         con.commit()

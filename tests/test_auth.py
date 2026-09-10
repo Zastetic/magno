@@ -75,7 +75,7 @@ def test_cadastro_cria_conta_e_sessao(cliente):
     assert corpo["usuario"]["nome"] == "João da Silva"
     assert corpo["usuario"]["telefone_formatado"] == "(13) 99763-0784"
     assert corpo["usuario"]["papel"] == "cliente"
-    assert corpo["usuario"]["tem_pin"] is True
+    assert corpo["usuario"]["tem_senha"] is True
     assert corpo["usuario"]["tem_google"] is False
     assert "senha_hash" not in corpo["usuario"]
     assert len(corpo["token"]) > 30

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Entrar — Barbearia Magnum</title>
-<meta name="description" content="Entre para ver, remarcar ou cancelar seus agendamentos na Barbearia Magnum.">
+<meta name="description" content="Entre com seu e-mail e um código de 5 dígitos para ver, remarcar ou cancelar seus agendamentos.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 30'%3E%3Crect x='2' y='2' width='14' height='26' rx='7' fill='none' stroke='%23c69347' stroke-width='1.6'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -37,55 +37,33 @@
       <p class="kicker">Área do cliente</p>
       <h1 id="titulo">Entrar</h1>
       <p class="linha-fina" id="subtitulo">
-        Veja seus agendamentos, remarque ou cancele sem precisar ligar.
+        Digite seu e-mail e mandamos um código de 5 dígitos. Sem senha, sem cadastro chato.
       </p>
 
-      <div class="abas">
-        <button class="aba ativa" id="abaEntrar" type="button">Entrar</button>
-        <button class="aba" id="abaCriar" type="button">Criar conta</button>
-      </div>
-
-      <!-- ------------------------------------------------ entrar -->
-      <form class="form-auth" id="formEntrar" novalidate>
+      <!-- ------------------------------------------------- passo 1: e-mail -->
+      <form class="form-auth" id="formEmail" novalidate>
         <div class="campo">
-          <label for="loginTelefone">Telefone com DDD</label>
-          <input id="loginTelefone" name="telefone" inputmode="tel" autocomplete="tel"
-                 placeholder="(13) 99763-0784">
+          <label for="email">Seu e-mail</label>
+          <input id="email" name="email" type="email" inputmode="email" autocomplete="email"
+                 placeholder="voce@email.com">
         </div>
-        <div class="campo">
-          <label for="loginPin">PIN</label>
-          <input id="loginPin" name="pin" type="password" inputmode="numeric"
-                 autocomplete="current-password" maxlength="6" placeholder="••••">
-        </div>
-        <button class="btn btn-cheio btn-largo" type="submit">Entrar</button>
+        <button class="btn btn-cheio btn-largo" type="submit">Receber código</button>
       </form>
 
-      <!-- ------------------------------------------------ criar conta -->
-      <form class="form-auth" id="formCriar" hidden novalidate>
+      <!-- ------------------------------------------------- passo 2: código -->
+      <form class="form-auth" id="formCodigo" hidden novalidate>
+        <p class="resumo-escolha">
+          Mandamos um código para <b id="emailEnviado">—</b>. Ele vale
+          <span id="validadeCodigo">10 minutos</span>.
+        </p>
         <div class="campo">
-          <label for="criarNome">Nome</label>
-          <input id="criarNome" name="nome" autocomplete="name" placeholder="Como devemos te chamar">
+          <label for="codigo">Código de 5 dígitos</label>
+          <input id="codigo" name="codigo" class="campo-codigo" inputmode="numeric"
+                 autocomplete="one-time-code" maxlength="5" placeholder="00000">
         </div>
-        <div class="campo">
-          <label for="criarTelefone">Telefone com DDD</label>
-          <input id="criarTelefone" name="telefone" inputmode="tel" autocomplete="tel"
-                 placeholder="(13) 99763-0784">
-        </div>
-        <div class="campo">
-          <label for="criarPin">Crie um PIN</label>
-          <input id="criarPin" name="pin" type="password" inputmode="numeric" maxlength="6"
-                 placeholder="4 a 6 dígitos" aria-describedby="dicaPin">
-          <small id="dicaPin">Esse PIN é a sua senha aqui. Não é para ser fácil de adivinhar.</small>
-        </div>
-        <div class="campo">
-          <label for="criarEmail">E-mail (opcional)</label>
-          <input id="criarEmail" name="email" type="email" autocomplete="email" placeholder="para receber o comprovante">
-        </div>
-        <label class="consentimento">
-          <input type="checkbox" id="criarConsentimento">
-          <span>Aceito os <a href="#">termos</a> e a <a href="#">política de privacidade</a>.</span>
-        </label>
-        <button class="btn btn-cheio btn-largo" type="submit">Criar conta e entrar</button>
+        <button class="btn btn-cheio btn-largo" type="submit">Entrar</button>
+        <button class="btn btn-texto" id="btnReenviar" type="button">Não chegou — enviar de novo</button>
+        <button class="btn btn-texto" id="btnTrocarEmail" type="button">← usar outro e-mail</button>
       </form>
 
       <p class="aviso" id="aviso" hidden></p>
@@ -102,8 +80,40 @@
         Entrar com Google
       </a>
 
+      <div class="alternativas">
+        <button class="btn btn-texto" id="btnModoSenha" type="button">Entrar com senha</button>
+        <button class="btn btn-texto" id="btnModoTelefone" type="button">Entrar com telefone e PIN</button>
+      </div>
+
+      <!-- ------------------------------------------------- alternativas -->
+      <form class="form-auth" id="formEntrarSenha" hidden novalidate>
+        <div class="campo">
+          <label for="entrarEmailSenha">E-mail</label>
+          <input id="entrarEmailSenha" type="email" autocomplete="email" placeholder="voce@email.com">
+        </div>
+        <div class="campo">
+          <label for="entrarSenha">Senha</label>
+          <input id="entrarSenha" type="password" autocomplete="current-password" placeholder="sua senha">
+        </div>
+        <button class="btn btn-vazado btn-largo" type="submit">Entrar com senha</button>
+      </form>
+
+      <form class="form-auth" id="formEntrarTelefone" hidden novalidate>
+        <div class="campo">
+          <label for="loginTelefone">Telefone com DDD</label>
+          <input id="loginTelefone" inputmode="tel" autocomplete="tel" placeholder="(13) 99763-0784">
+        </div>
+        <div class="campo">
+          <label for="loginPin">PIN</label>
+          <input id="loginPin" type="password" inputmode="numeric" autocomplete="current-password"
+                 maxlength="6" placeholder="••••">
+        </div>
+        <button class="btn btn-vazado btn-largo" type="submit">Entrar com PIN</button>
+      </form>
+
       <p class="dica">
-        Ainda não tem conta? É só digitar o telefone e criar um PIN — leva 20 segundos.
+        Primeira vez? É esta tela mesmo: digite o e-mail, confirme o código e a conta fica criada.
+        Depois, se quiser, você cria uma senha para entrar mais rápido.
       </p>
     </div>
   </div>

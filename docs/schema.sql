@@ -5,16 +5,20 @@
 -- v2 (login): usuarios passa a aceitar duas formas de entrada — telefone+PIN (cliente da loja)
 -- ou Google (login social). Por isso `telefone` e `senha_hash` são NULÁVEIS e `google_sub`
 -- guarda o identificador do Google. A regra "todo usuário tem como entrar" virou CHECK.
+-- v3 (código por e-mail): a entrada principal passa a ser e-mail + código de 5 dígitos.
+-- Senha (PIN) vira OPCIONAL — quem quiser entra sem senha nenhuma. Tabela `codigos_email`
+-- guarda o código com hash, validade curta e limite de tentativas.
 PRAGMA foreign_keys = ON;
 
 -- ---------------------------------------------------------------- pessoas
 CREATE TABLE IF NOT EXISTS usuarios (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
   nome                 TEXT    NOT NULL,
-  telefone             TEXT    UNIQUE,         -- E.164 sem '+' — login do cliente (NULL em conta só-Google)
-  email                TEXT,                   -- e-mail (obrigatório no login Google); único quando existe
-  senha_hash           TEXT,                   -- PIN do cliente (NULL em conta só-Google)
-  google_sub           TEXT,                   -- 'sub' do Google (NULL em conta só-telefone)
+  telefone             TEXT    UNIQUE,         -- E.164 sem '+' — NULL se não informado ainda
+  email                TEXT,                   -- entrada principal (código por e-mail)
+  email_verificado_em  TEXT,                   -- quando o código foi confirmado
+  senha_hash           TEXT,                   -- OPCIONAL (PIN/senha de quem quiser atalho)
+  google_sub           TEXT,                   -- 'sub' do Google (NULL se nunca usou Google)
   foto_url             TEXT,                   -- foto do perfil Google
   papel                TEXT    NOT NULL DEFAULT 'cliente'
                                CHECK (papel IN ('cliente','barbeiro','admin')),
@@ -24,8 +28,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
   ultimo_login_em      TEXT,
   criado_em            TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
   atualizado_em        TEXT,
-  -- sem PIN e sem Google a conta não teria como entrar
-  CHECK (senha_hash IS NOT NULL OR google_sub IS NOT NULL)
+  -- sem senha, sem Google e sem e-mail a conta não teria como entrar
+  CHECK (senha_hash IS NOT NULL OR google_sub IS NOT NULL OR email IS NOT NULL)
 );
 CREATE INDEX IF NOT EXISTS idx_usuarios_papel ON usuarios(papel, ativo);
 -- um e-mail só pode pertencer a uma conta (ignorando maiúsculas); NULLs não contam
@@ -33,6 +37,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_email
   ON usuarios(lower(email)) WHERE email IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_google
   ON usuarios(google_sub) WHERE google_sub IS NOT NULL;
+
+-- códigos de verificação enviados por e-mail (login sem senha)
+CREATE TABLE IF NOT EXISTS codigos_email (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  email       TEXT    NOT NULL,             -- sempre minúsculo
+  codigo_hash TEXT    NOT NULL,             -- pbkdf2 do código: o código em claro não fica no banco
+  expira_em   TEXT    NOT NULL,
+  tentativas  INTEGER NOT NULL DEFAULT 0,   -- 5 tentativas e o código morre
+  usado_em    TEXT,
+  ip          TEXT,
+  criado_em   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_codigos_email ON codigos_email(email, criado_em DESC);
 
 -- profissional = usuario com papel barbeiro (1:1). Tabela separada para perfil público.
 CREATE TABLE IF NOT EXISTS profissionais (

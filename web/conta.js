@@ -28,7 +28,7 @@
 
     var via = document.createElement("span");
     via.className = "etiqueta-via";
-    via.textContent = usuario.tem_google ? "Google" : "telefone + PIN";
+    via.textContent = usuario.tem_google ? "Google" : (usuario.tem_senha ? "telefone + PIN" : "código por e-mail");
     var nome = document.getElementById("nomeUsuario");
     nome.appendChild(via);
 
@@ -50,6 +50,11 @@
     }
 
     if (formTelefone) formTelefone.hidden = !usuario.precisa_telefone;
+
+    var rotuloSenha = document.getElementById("rotuloSenha");
+    var btnSalvarSenha = document.getElementById("btnSalvarSenha");
+    if (rotuloSenha) rotuloSenha.textContent = usuario.tem_senha ? "Trocar a senha (opcional)" : "Senha (opcional)";
+    if (btnSalvarSenha) btnSalvarSenha.textContent = usuario.tem_senha ? "Trocar senha" : "Salvar senha";
   }
 
   if (!auth || !auth.lerSessao()) {
@@ -74,6 +79,26 @@
         .then(function (r) {
           desenhar(r.usuario);
           mostrar("Telefone salvo.", "ok");
+        })
+        .catch(function (e) { mostrar(e.message, "erro"); })
+        .finally(function () { botao.disabled = false; });
+    });
+  }
+
+  // senha é opcional: quem quiser um atalho cria aqui
+  var formSenha = document.getElementById("formSenha");
+  if (formSenha) {
+    formSenha.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var botao = document.getElementById("btnSalvarSenha");
+      var campo = document.getElementById("novaSenha");
+      botao.disabled = true;
+      mostrar("");
+      auth.pedir("/api/auth/senha", { method: "POST", body: JSON.stringify({ senha: campo.value }) })
+        .then(function (r) {
+          campo.value = "";
+          desenhar(r.usuario);
+          mostrar("Senha salva. Agora você pode entrar com e-mail e senha.", "ok");
         })
         .catch(function (e) { mostrar(e.message, "erro"); })
         .finally(function () { botao.disabled = false; });

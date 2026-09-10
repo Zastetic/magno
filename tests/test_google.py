@@ -62,7 +62,7 @@ def test_callback_cria_conta_e_devolve_sessao(cliente):
     assert usuario["nome"] == "João Teste"
     assert usuario["email"] == "joao.teste@exemplo.test"
     assert usuario["tem_google"] is True
-    assert usuario["tem_pin"] is False
+    assert usuario["tem_senha"] is False
     assert usuario["telefone"] is None
     assert usuario["precisa_telefone"] is True      # barbearia precisa do número
 
@@ -142,7 +142,7 @@ def test_google_vincula_conta_existente_pelo_email(cliente):
 
     assert usuario["id"] == id_telefone
     assert usuario["tem_google"] is True
-    assert usuario["tem_pin"] is True          # continua entrando com PIN também
+    assert usuario["tem_senha"] is True          # continua entrando com PIN também
     assert usuario["telefone_formatado"] == "(13) 99763-0501"
 
 

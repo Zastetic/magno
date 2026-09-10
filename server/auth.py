@@ -1,8 +1,13 @@
-"""Autenticação do Barbearia Magno — PIN do cliente, sessão opaca revogável e papéis.
+"""Autenticação do Barbearia Magno.
 
-Decisões que estão aqui dentro (docs/03-DECISOES.md):
-  · D16 — cliente entra com telefone + PIN de 4 a 6 dígitos
+Três formas de entrar, nesta ordem de importância:
+  1. **e-mail + código de 5 dígitos** (sem senha) — D23, a principal
+  2. Google (OAuth) — D22
+  3. telefone + PIN (opcional, para quem quer atalho ou foi cadastrado no balcão) — D16
+
+Decisões de segurança que estão aqui dentro:
   · token opaco (nunca JWT): o banco guarda só sha256(token), logout revoga de verdade
+  · código de e-mail com hash, validade de 10 min, uso único e no máximo 5 tentativas
   · lockout de 5 falhas / 15 min por telefone+IP, resposta sempre genérica
 """
 from __future__ import annotations
@@ -204,6 +209,138 @@ def revogar_todas(usuario_id: int) -> None:
         con.close()
 
 
+# ------------------------------------------------------- e-mail e código (5 dígitos)
+TEMPO_CODIGO_MIN = 10
+MAX_TENTATIVAS_CODIGO = 5
+ENVIOS_POR_JANELA = 3
+JANELA_ENVIOS_S = 15 * 60
+INTERVALO_MINIMO_S = 60
+_envios: dict[str, list[float]] = {}
+
+RE_EMAIL = re.compile(r"^[^@\s]{1,64}@[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$")
+
+
+def normalizar_email(bruto: str | None) -> str | None:
+    email = (bruto or "").strip().lower()
+    if len(email) > 254 or not RE_EMAIL.match(email):
+        return None
+    return email
+
+
+def _chave_email(email: str, ip: str | None) -> str:
+    return f"cod:{email}|{ip or '?'}"
+
+
+def espera_para_enviar(email: str, ip: str | None) -> int:
+    """Segundos que faltam para poder pedir outro código. 0 = pode pedir agora."""
+    agora = time.monotonic()
+    chave = _chave_email(email, ip)
+    marcas = [m for m in _envios.get(chave, []) if agora - m < JANELA_ENVIOS_S]
+    _envios[chave] = marcas
+    if marcas and agora - marcas[-1] < INTERVALO_MINIMO_S:
+        return int(INTERVALO_MINIMO_S - (agora - marcas[-1])) + 1
+    if len(marcas) >= ENVIOS_POR_JANELA:
+        return int(JANELA_ENVIOS_S - (agora - marcas[0])) + 1
+    return 0
+
+
+def registrar_envio(email: str, ip: str | None) -> None:
+    agora = time.monotonic()
+    chave = _chave_email(email, ip)
+    _envios.setdefault(chave, []).append(agora)
+    if len(_envios) > 5000:
+        for k in [k for k, v in _envios.items() if not v or agora - v[-1] > JANELA_ENVIOS_S][:1000]:
+            _envios.pop(k, None)
+
+
+def gerar_codigo() -> str:
+    """5 dígitos, com zeros à esquerda (00000 a 99999)."""
+    return f"{secrets.randbelow(100000):05d}"
+
+
+def criar_codigo(email: str, ip: str | None) -> tuple[str, str]:
+    """Invalida os códigos anteriores desse e-mail e grava um novo. Devolve (código, expira_em)."""
+    codigo = gerar_codigo()
+    expira = (datetime.now(timezone.utc) + timedelta(minutes=TEMPO_CODIGO_MIN)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    con = db.conectar()
+    try:
+        con.execute("UPDATE codigos_email SET usado_em = ? WHERE email = ? AND usado_em IS NULL",
+                    (_agora_iso(), email))
+        con.execute("INSERT INTO codigos_email (email, codigo_hash, expira_em, ip) VALUES (?, ?, ?, ?)",
+                    (email, _hash_codigo(codigo), expira, ip))
+        con.execute("DELETE FROM codigos_email WHERE expira_em < ?", (_agora_iso(),))  # limpeza barata
+        con.commit()
+    finally:
+        con.close()
+    return codigo, expira
+
+
+def _hash_codigo(codigo: str) -> str:
+    """Código de 5 dígitos é curto demais para sha256 puro: usa pbkdf2 com sal."""
+    return hash_pin(codigo)
+
+
+def conferir_codigo(email: str, codigo: str) -> tuple[bool, str]:
+    """Valida o código mais recente. Devolve (ok, motivo do erro)."""
+    if not re.fullmatch(r"\d{5}", (codigo or "").strip()):
+        return False, "O código tem 5 dígitos."
+    con = db.conectar()
+    try:
+        linha = con.execute(
+            """SELECT * FROM codigos_email WHERE email = ? AND usado_em IS NULL
+                ORDER BY id DESC LIMIT 1""", (email,)).fetchone()
+        if not linha:
+            return False, "Peça um código novo — esse não vale mais."
+        registro = dict(linha)
+        if registro["expira_em"] < _agora_iso():
+            con.execute("UPDATE codigos_email SET usado_em = ? WHERE id = ?", (_agora_iso(), registro["id"]))
+            con.commit()
+            return False, "Esse código expirou. Peça outro."
+        if registro["tentativas"] >= MAX_TENTATIVAS_CODIGO:
+            con.execute("UPDATE codigos_email SET usado_em = ? WHERE id = ?", (_agora_iso(), registro["id"]))
+            con.commit()
+            return False, "Muitas tentativas nesse código. Peça outro."
+        if not conferir_pin(codigo.strip(), registro["codigo_hash"]):
+            con.execute("UPDATE codigos_email SET tentativas = tentativas + 1 WHERE id = ?", (registro["id"],))
+            con.commit()
+            restam = MAX_TENTATIVAS_CODIGO - (registro["tentativas"] + 1)
+            return False, ("Código não confere." + (f" Restam {restam} tentativas." if restam > 0 else " Peça outro código."))
+        con.execute("UPDATE codigos_email SET usado_em = ? WHERE id = ?", (_agora_iso(), registro["id"]))
+        con.commit()
+        return True, ""
+    finally:
+        con.close()
+
+
+def validar_senha(senha: str | None) -> tuple[bool, str]:
+    """Senha é OPCIONAL no Magno; quem cria escolhe algo entre 4 e 20 caracteres."""
+    if not senha or not 4 <= len(senha) <= 20:
+        return False, "A senha precisa ter de 4 a 20 caracteres."
+    if senha.isdigit():
+        return validar_pin(senha, None)
+    return True, ""
+
+
+def definir_senha(usuario_id: int, senha: str) -> None:
+    con = db.conectar()
+    try:
+        con.execute("UPDATE usuarios SET senha_hash = ?, atualizado_em = ? WHERE id = ?",
+                    (hash_pin(senha), _agora_iso(), usuario_id))
+        con.commit()
+    finally:
+        con.close()
+
+
+def marcar_email_verificado(usuario_id: int) -> None:
+    con = db.conectar()
+    try:
+        con.execute("UPDATE usuarios SET email_verificado_em = COALESCE(email_verificado_em, ?) WHERE id = ?",
+                    (_agora_iso(), usuario_id))
+        con.commit()
+    finally:
+        con.close()
+
+
 # ------------------------------------------------------------------ usuários
 def buscar_por_telefone(telefone: str) -> dict[str, Any] | None:
     con = db.conectar()
@@ -250,10 +387,11 @@ def publico(usuario: dict[str, Any]) -> dict[str, Any]:
         "telefone": usuario.get("telefone"),
         "telefone_formatado": telefone_formatado(usuario.get("telefone")),
         "email": usuario.get("email"),
+        "email_verificado": bool(usuario.get("email_verificado_em")),
         "foto_url": usuario.get("foto_url"),
-        "tem_pin": bool(usuario.get("senha_hash")),
+        "tem_senha": bool(usuario.get("senha_hash")),
         "tem_google": bool(usuario.get("google_sub")),
-        # conta só-Google ainda não tem telefone: precisa completar antes de agendar
+        # conta sem telefone: precisa completar antes de agendar (a loja confirma pelo número)
         "precisa_telefone": not bool(usuario.get("telefone")),
     }
 

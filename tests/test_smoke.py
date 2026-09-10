@@ -24,8 +24,8 @@ def test_schema_aplica_e_e_idempotente():
 
 def test_banco_tem_as_tabelas_e_os_indices():
     resumo = db.resumo()
-    assert resumo["tabelas"] == 12          # 11 de domínio + logins_pendentes (state do OAuth)
-    assert resumo["indices"] == 10
+    assert resumo["tabelas"] == 13          # 12 de domínio + logins_pendentes (state do OAuth)
+    assert resumo["indices"] == 11
     assert resumo["integridade"] == "ok"
 
 

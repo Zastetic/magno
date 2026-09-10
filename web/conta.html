@@ -49,8 +49,8 @@
       <form id="formTelefone" hidden novalidate>
         <p class="rotulo">Falta seu telefone</p>
         <p class="resumo-escolha">
-          Sua conta entrou pelo Google, então ainda não temos seu número. A barbearia usa o
-          telefone para confirmar o atendimento.
+          Sua conta ainda não tem telefone. A barbearia usa o número para confirmar o
+          atendimento e avisar se algo mudar.
         </p>
         <div class="campo">
           <label for="telefone">Telefone com DDD</label>
@@ -64,6 +64,22 @@
         Nenhum agendamento ainda.<br>
         <a href="./#contato" class="btn btn-texto">Marcar um horário</a>
       </div>
+
+      <hr>
+
+      <form id="formSenha" novalidate>
+        <p class="rotulo" id="rotuloSenha">Senha (opcional)</p>
+        <p class="resumo-escolha">
+          Você entra com um código enviado por e-mail. Se quiser entrar sem esperar o
+          e-mail, crie uma senha — é opcional e você pode apagar quando quiser.
+        </p>
+        <div class="campo">
+          <label for="novaSenha">Senha</label>
+          <input id="novaSenha" type="password" autocomplete="new-password"
+                 placeholder="de 4 a 20 caracteres">
+        </div>
+        <button class="btn btn-vazado btn-largo" type="submit" id="btnSalvarSenha">Salvar senha</button>
+      </form>
 
       <hr>
       <button class="btn btn-vazado" id="btnSair" type="button">Sair da conta</button>

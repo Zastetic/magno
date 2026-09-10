@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from server import auth, db, google_auth
+from server import auth, db, email_provider, google_auth
 
 RAIZ = Path(__file__).resolve().parent.parent
 WEB = RAIZ / "web"
@@ -108,8 +108,12 @@ def saude() -> dict:
         "banco": banco,
         "login": {
             "telefone_pin": True,
+            "email_codigo": True,
             "google": google_auth.configurado(),
             "google_modo_teste": google_auth.modo_fake(),
+            "email_modo": email_provider.modo(),
+            "email_pronto": email_provider.configurado(),
+            "email_remetente": email_provider.remetente(),
         },
         "regras": {
             "slot_min": db.config("slot_min"),
@@ -249,6 +253,134 @@ def completar_telefone(corpo: CorpoTelefone, usuario: dict = Depends(auth.usuari
     atualizado = dict(usuario)
     atualizado["telefone"] = telefone
     return {"usuario": auth.publico(atualizado)}
+
+
+# ==================================================== login por código no e-mail
+class CorpoEmail(BaseModel):
+    email: str
+    nome: str | None = None
+
+
+class CorpoCodigo(BaseModel):
+    email: str
+    codigo: str
+    nome: str | None = None
+
+
+class CorpoSenha(BaseModel):
+    senha: str
+
+
+class CorpoEntrarSenha(BaseModel):
+    email: str
+    senha: str
+
+
+@app.post("/api/auth/codigo")
+def pedir_codigo(corpo: CorpoEmail, request: Request):
+    """Manda um código de 5 dígitos para o e-mail. É a entrada principal — sem senha."""
+    email = auth.normalizar_email(corpo.email)
+    if not email:
+        raise HTTPException(400, {"erro": "Confira o e-mail digitado.", "codigo": "email_invalido"})
+
+    ip = _ip(request)
+    espera = auth.espera_para_enviar(email, ip)
+    if espera:
+        raise HTTPException(429, {
+            "erro": f"Calma — dá para pedir outro código em {espera} segundos.",
+            "codigo": "aguarde", "esperar_se": espera})
+
+    usuario = auth.buscar_por_email(email)
+    codigo, expira = auth.criar_codigo(email, ip)
+    nome = (usuario or {}).get("nome") or corpo.nome
+    envio = email_provider.enviar_codigo(email, codigo, nome)
+    if not envio["ok"]:
+        print(f"[magno] falha ao enviar e-mail ({envio['modo']}): {envio['detalhe']}")
+        raise HTTPException(502, {
+            "erro": "Não consegui enviar o e-mail agora. Tente de novo ou entre com telefone e PIN.",
+            "codigo": "email_falhou"})
+
+    auth.registrar_envio(email, ip)
+    db.registrar_evento("codigo_email.enviado", (usuario or {}).get("id"))
+    return {"enviado": True, "expira_em": expira, "minutos": auth.TEMPO_CODIGO_MIN}
+
+
+@app.post("/api/auth/verificar")
+def verificar_codigo(corpo: CorpoCodigo, request: Request):
+    """Confere o código; cria a conta se for a primeira vez. Devolve a sessão."""
+    email = auth.normalizar_email(corpo.email)
+    if not email:
+        raise HTTPException(400, {"erro": "Confira o e-mail digitado.", "codigo": "email_invalido"})
+
+    ok, motivo = auth.conferir_codigo(email, corpo.codigo)
+    if not ok:
+        raise HTTPException(401, {"erro": motivo, "codigo": "codigo_invalido"})
+
+    usuario = auth.buscar_por_email(email)
+    criado = False
+    if usuario and not usuario["ativo"]:
+        raise HTTPException(403, {"erro": "Conta desativada. Fale com a barbearia.",
+                                  "codigo": "conta_inativa"})
+    if not usuario:
+        nome = (corpo.nome or "").strip() or email.split("@")[0].replace(".", " ").title()
+        con = db.conectar()
+        try:
+            cursor = con.execute(
+                """INSERT INTO usuarios (nome, email, email_verificado_em, papel, consentimento_lgpd_em)
+                   VALUES (?, ?, ?, 'cliente', ?)""",
+                (nome[:80], email, auth._agora_iso(), auth._agora_iso()))
+            con.commit()
+            usuario_id = int(cursor.lastrowid or 0)
+        finally:
+            con.close()
+        if not usuario_id:
+            raise HTTPException(500, {"erro": "Não consegui criar a conta.", "codigo": "erro_interno"})
+        criado = True
+    else:
+        usuario_id = int(usuario["id"])
+        auth.marcar_email_verificado(usuario_id)
+
+    token = auth.criar_sessao(usuario_id, _ip(request), request.headers.get("user-agent"))
+    db.registrar_evento("login.email", usuario_id,
+                        payload='{"criado": %s}' % ("true" if criado else "false"))
+    conta = auth.buscar_por_id(usuario_id)
+    if not conta:
+        raise HTTPException(500, {"erro": "Conta não encontrada.", "codigo": "erro_interno"})
+    return {"token": token, "usuario": auth.publico(conta), "conta_nova": criado}
+
+
+@app.post("/api/auth/senha")
+def criar_senha(corpo: CorpoSenha, usuario: dict = Depends(auth.usuario_atual)):
+    """Senha é opcional: quem quiser um atalho cria aqui (pode trocar depois)."""
+    ok, mensagem = auth.validar_senha(corpo.senha)
+    if not ok:
+        raise HTTPException(400, {"erro": mensagem, "codigo": "senha_fraca"})
+    auth.definir_senha(usuario["id"], corpo.senha)
+    db.registrar_evento("senha.definida", usuario["id"])
+    conta = auth.buscar_por_id(usuario["id"])
+    return {"usuario": auth.publico(conta) if conta else auth.publico(usuario)}
+
+
+@app.post("/api/auth/entrar-senha")
+def entrar_com_senha(corpo: CorpoEntrarSenha, request: Request):
+    email = auth.normalizar_email(corpo.email) or ""
+    ip = _ip(request)
+    restante = auth.bloqueio_restante(email, ip)
+    if restante:
+        raise HTTPException(429, {"erro": f"Muitas tentativas. Tente de novo em {restante // 60 + 1} min.",
+                                  "codigo": "lockout", "esperar_seg": restante})
+
+    usuario = auth.buscar_por_email(email) if email else None
+    if not usuario or not auth.conferir_pin(corpo.senha or "", usuario.get("senha_hash")):
+        auth.registrar_falha(email, ip)
+        raise HTTPException(401, {"erro": "E-mail ou senha não conferem.", "codigo": "credencial_invalida"})
+    if not usuario["ativo"]:
+        raise HTTPException(403, {"erro": "Conta desativada. Fale com a barbearia.", "codigo": "conta_inativa"})
+
+    auth.limpar_falhas(email, ip)
+    token = auth.criar_sessao(usuario["id"], ip, request.headers.get("user-agent"))
+    db.registrar_evento("login.senha", usuario["id"])
+    return {"token": token, "usuario": auth.publico(usuario)}
 
 
 # ============================================================ login com Google

@@ -645,6 +645,7 @@ hr { border: 0; border-top: 1px solid var(--linha); margin: 26px 0; }
   color: var(--latao); border: 1px solid var(--linha-forte);
   border-radius: 2px; padding: 3px 7px; margin-left: 8px;
 }
+.cartao-conta form { margin-bottom: 26px; }
 .bloco-vazio {
   border: 1px dashed var(--linha-forte);
   border-radius: var(--raio);
@@ -653,6 +654,23 @@ hr { border: 0; border-top: 1px solid var(--linha); margin: 26px 0; }
   color: var(--tinta-3);
   font-size: 14px;
 }
+
+/* código de 5 dígitos: campo grande, números espaçados */
+.campo input.campo-codigo {
+  font-size: 26px;
+  letter-spacing: .34em;
+  text-align: center;
+  padding: 14px 10px;
+  font-variant-numeric: tabular-nums;
+}
+.alternativas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 22px;
+  justify-content: center;
+  margin-top: 22px;
+}
+.alternativas .btn-texto { width: auto; font-size: 12px; }
 
 /* consentimento em linha (formulário de login, não a home) */
 .auth-caixa .consentimento { margin: 14px 0 18px; }

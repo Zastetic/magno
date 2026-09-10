@@ -1,71 +1,75 @@
 # Deploy — Barbearia Magnum (magnum.autoava.us)
 
-## Estado atual (2026-09-10 00:15)
+## Estado atual (2026-09-10 00:25)
 
 | Peça | Estado |
 |---|---|
-| Servidor local | ✅ `magno-server.service` (systemd --user) — uvicorn em `127.0.0.1:8100`, `enabled` |
-| Conector do túnel | ✅ `magno-tunnel.service` — cloudflared conectado (4 conexões, gru14/gru08/gru19) |
+| Servidor local | ✅ `magno-server.service` (systemd --user) — uvicorn `127.0.0.1:8100`, `enabled` |
+| Conector do túnel | ✅ `magno-tunnel.service` — túnel **dedicado** `c0c5fc61-8ecf-4fde-a6a1-b7e03345bdcc` conectado |
+| DNS `magnum.autoava.us` | ✅ existe — A record proxied (172.67.128.147 / 104.21.2.16) |
+| Ingress no túnel | ⚠️ existe, com o **protocolo errado** — 1 campo para corrigir (abaixo) |
 | Banco | ✅ `/home/vh450/.local/share/magno/magno.db` (ext4 nativo) |
-| DNS `magnum.autoava.us` | ❌ **não existe** — falta 1 passo no painel Cloudflare (abaixo) |
-| Ingress no túnel | ❌ sem regra para `magnum.autoava.us` (hoje cai no catch-all `http_status:404`) |
 
-O túnel já está no ar reusando o conector do `autoava.us`. O log confirma o ingress remoto (autoritativo):
+O Okai criou um túnel novo e dedicado para o magno (mesma conta `e50bc5dd...`, tunnel
+`c0c5fc61-8ecf-4fde-a6a1-b7e03345bdcc`). O conector já roda com o token dele. O DNS já
+resolve. O ingress remoto que a Cloudflare entrega é:
 
 ```json
 {"ingress":[
-  {"hostname":"autoava.us","service":"http://127.0.0.1:8000"},
-  {"hostname":"www.autoava.us","service":"http://127.0.0.1:8000"},
+  {"hostname":"magnum.autoava.us","service":"https://127.0.0.1:8100"},
   {"service":"http_status:404"}],
  "warp-routing":{"enabled":false}}
 ```
 
-Falta só uma linha nessa lista — e ela só pode ser editada no painel (o token do conector
-permite conectar, não editar configuração).
+## O que falta: trocar HTTPS por HTTP (1 campo, ~15 s)
 
-## Passo que só o dono faz (~40 segundos, 1x só)
+O `uvicorn` serve **HTTP** na 8100, mas o hostname foi cadastrado como `https://`. O log do
+cloudflared mostra o erro exato:
 
-O jeito mais direto, que já cria o DNS e o ingress juntos:
-
-1. `dash.cloudflare.com` → domínio **autoava.us** → **Zero Trust**.
-2. **Networks → Tunnels** → abrir o túnel `b584ba18-040b-4dfd-bf7b-47d890a767d6`.
-3. Aba **Public Hostname** → **Add a public hostname**.
-4. Preencher:
-   - Subdomain: `magnum`
-   - Domain: `autoava.us`
-   - Type: `HTTP` · URL: `127.0.0.1:8100`
-5. **Save**.
-
-A Cloudflare cria o CNAME `magnum.autoava.us` → `<uuid>.cfargotunnel.com` automaticamente.
-O cloudflared puxa a config sozinho em segundos (não precisa reiniciar nada) e o log mostra
-`Updated to new configuration` com a regra nova.
-
-## Verificação (depois do passo acima)
-
-```bash
-python3 -c "import socket; print(socket.gethostbyname('magnum.autoava.us'))"   # resolve?
-curl -o /dev/null -w "%{http_code}\n" https://magnum.autoava.us/               # 200
-curl -o /dev/null -w "%{http_code}\n" https://magnum.autoava.us/api/saude      # 200
+```
+ERR Unable to reach the origin service ... tls: first record does not look like a TLS handshake
+    ingressRule=0 originService=https://127.0.0.1:8100
 ```
 
-502 = conector ok mas origem errada (conferir se o Service ficou `127.0.0.1:8100`, não 8000).
+Isso é o 502 que o domínio devolve hoje. Correção:
 
-## Alternativa: eu faço sozinho (se criar um token de API)
+1. `dash.cloudflare.com` → autoava.us → **Zero Trust** → **Networks → Tunnels**.
+2. Abrir o túnel do magno (`c0c5fc61-8ecf-4fde-a6a1-b7e03345bdcc`).
+3. Aba **Public Hostname** → clicar em `magnum.autoava.us` → **Edit**.
+4. Trocar **Type** de `HTTPS` para **`HTTP`**, mantendo a URL `127.0.0.1:8100`.
+5. **Save**. O cloudflared puxa a config sozinho em segundos — não precisa reiniciar nada.
 
-Criar em `dash.cloudflare.com` → **My Profile → API Tokens → Create Token → Custom**:
+> O `autoava.us` usa exatamente esse padrão (`HTTP → 127.0.0.1:8000`). Não é para servir TLS
+> na origem: quem faz o HTTPS com o certificado válido é a própria Cloudflare (a origem fica
+> em loopback, e por isso HTTP é o correto).
 
-- Permissão **Account → Cloudflare Tunnel → Edit**
-- Permissão **Zone → DNS → Edit** (zone: autoava.us)
+## Verificação (depois de salvar)
 
-Colando o token aqui, eu adiciono o hostname e o CNAME por API em segundos, sem painel — e
-fico apto a fazer isso para os próximos serviços também. O token é guardado só no
-`.env.local` (que é ignorado pelo git).
+```bash
+curl -o /dev/null -w "%{http_code}\n" https://magnum.autoava.us/            # 200
+curl -o /dev/null -w "%{http_code}\n" https://magnum.autoava.us/api/saude   # 200
+journalctl --user -u magno-tunnel -f                                        # sem ERR
+```
+
+`502` = conector ok, origem inalcançável (conferir Type/URL do Public Hostname).
+`404` = chegou no túnel mas o hostname não casa com nenhuma regra de ingress.
+
+## Alternativa: eu corrijo por API
+
+Criar um token em `dash.cloudflare.com` → **My Profile → API Tokens → Create Token → Custom**:
+
+- **Account → Cloudflare Tunnel → Edit**
+- **Zone → DNS → Edit** (zone `autoava.us`)
+
+Com o token eu ajusto o ingress (`PATCH /accounts/{account_id}/cfd_tunnel/{tunnel_id}/configurations`),
+crio/corrijo DNS e publico novos serviços sem passar pelo painel. Guardado no `.env.local`
+(fora do git).
 
 ## Operação
 
 ```bash
 export XDG_RUNTIME_DIR=/run/user/1000
-systemctl --user status magno-server magno-tunnel      # ver estado
+systemctl --user status magno-server magno-tunnel      # estado
 systemctl --user restart magno-server                  # reiniciar o site
 journalctl --user -u magno-tunnel -f                   # acompanhar o túnel
 ```
@@ -75,12 +79,10 @@ Link público temporário (sem domínio, morre quando o processo cai):
 ./scripts/demo.sh
 ```
 
-## Observação sobre o autoava.us
+## Túneis e o autoava.us
 
-Ao subir o conector, `autoava.us` e `www.autoava.us` passaram de *1033 (sem conector)* para
-**502** — o túnel está apontando para `127.0.0.1:8000`, mas o `autoava-server.service` está
-parado. Nada que funcionava quebrou (o site já estava fora do ar), mas se quiser religar:
-
-```bash
-systemctl --user enable --now autoava-server
-```
+- `magno-tunnel.service` usa `/home/vh450/magno/.cloudflared_token` (**túnel dedicado do magno**).
+  Antes disso, o conector do magno rodou por alguns minutos com o token do autoava e devolveu
+  `autoava.us` para 530 (sem conector) ao ser trocado — ou seja, o autoava voltou ao estado em
+  que estava (o site já estava fora do ar, `autoava-server` parado).
+- Se quiser o autoava no ar de novo: `systemctl --user enable --now autoava-server autoava-tunnel`.

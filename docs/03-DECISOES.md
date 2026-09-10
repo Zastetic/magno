@@ -31,6 +31,25 @@ Todas as decisões de projeto estão fechadas. Nada mais bloqueia o início da F
 | D13 | Build | nenhum (front vanilla) | conforme D18 |
 | D14 | Turnstile | hook pronto, **desligado** | sitekey é presa ao domínio; ativar só com o domínio fixo |
 | D15 | Backup | cópia diária do `.db` (14 versões, `PRAGMA quick_check`) via cronjob do Hermes | mesmo esquema da biblioteca |
+| D21 | Onde fica o `.db` | **`~/.local/share/magno/magno.db` (ext4 nativo do WSL)**, com backup para `~/magno/data/backups/` no D: | medido: SQLite em DrvFs/9p grava ~238x mais devagar (ver abaixo) |
+
+### D21 em detalhe (medição, 2026-09-09)
+
+O projeto vive em `/mnt/d/projetos_wsl/magno` (convenção do Okai: dados no D:), mas o arquivo
+do banco **não** fica lá. Benchmark com as pragmas reais do app (WAL), 200 gravações:
+
+| Configuração | ext4 (`/tmp`) | `/mnt/d` (DrvFs/9p) | Diferença |
+|---|---|---|---|
+| `synchronous=FULL`, 1 gravação por transação | 0,002 s | 5,296 s | **2693x** |
+| `synchronous=FULL`, 20 gravações por transação | 0,000 s | 0,302 s | 1027x |
+| `synchronous=NORMAL`, 1 gravação por transação | 0,002 s | 0,462 s | **238x** |
+| `synchronous=NORMAL`, 20 gravações por transação | 0,000 s | 0,017 s | 62x |
+
+Para uma barbearia a carga é baixa (dezenas de escritas por dia), então 2,3 ms por gravação
+não inviabilizaria nada — mas é 238x de desperdício de graça, e SQLite sobre 9p é justamente
+onde aparecem os relatos de lock/`database is locked` sob concorrência (exatamente o cenário
+do dois-clientes-no-mesmo-slot que o D9 prevê). Decisão: `.db` no ext4, código e backups no D:.
+
 
 ## Ainda em aberto (não bloqueia; resolver antes do deploy)
 

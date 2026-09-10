@@ -26,8 +26,14 @@ cd ~/magno
 ./scripts/run.sh            # cria/ativa o venv e sobe em http://127.0.0.1:8100
 ```
 
-Variáveis (`.env.local`): `MAGNO_PORTA` (default 8100), `MAGNO_DB` (default `data/magno.db`),
-`MAGNO_TOKEN_TTL_MIN` (default 1440).
+Variáveis (`.env.local`): `MAGNO_PORTA` (default 8100), `MAGNO_DB` (default
+`/home/vh450/.local/share/magno/magno.db`), `MAGNO_TOKEN_TTL_MIN` (default 1440).
+
+> **O banco NÃO fica em `/mnt/d`.** O sistema de arquivos do Windows montado no WSL (DrvFs/9p)
+> é centenas de vezes mais lento para gravar: medi 200 gravações em 0,46 s lá contra 0,002 s
+> no ext4 nativo (238x). Como só o `.db` precisa de velocidade, ele fica no ext4
+> (`~/.local/share/magno/`) e o backup diário copia para `~/magno/data/backups/` no D:.
+> Código e versionamento continuam em `~/magno` → `/mnt/d/projetos_wsl/magno`.
 
 ## Testes
 

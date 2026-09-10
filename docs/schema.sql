@@ -4,7 +4,7 @@
 PRAGMA foreign_keys = ON;
 
 -- ---------------------------------------------------------------- pessoas
-CREATE TABLE usuarios (
+CREATE TABLE IF NOT EXISTS usuarios (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
   nome                 TEXT    NOT NULL,
   telefone             TEXT    NOT NULL UNIQUE,          -- E.164 sem '+'  (login do cliente)
@@ -18,10 +18,10 @@ CREATE TABLE usuarios (
   criado_em            TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
   atualizado_em        TEXT
 );
-CREATE INDEX idx_usuarios_papel ON usuarios(papel, ativo);
+CREATE INDEX IF NOT EXISTS idx_usuarios_papel ON usuarios(papel, ativo);
 
 -- profissional = usuario com papel barbeiro (1:1). Tabela separada para perfil público.
-CREATE TABLE profissionais (
+CREATE TABLE IF NOT EXISTS profissionais (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   usuario_id INTEGER NOT NULL UNIQUE REFERENCES usuarios(id) ON DELETE CASCADE,
   apelido    TEXT,
@@ -32,7 +32,7 @@ CREATE TABLE profissionais (
 );
 
 -- ---------------------------------------------------------------- catálogo
-CREATE TABLE servicos (
+CREATE TABLE IF NOT EXISTS servicos (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   nome           TEXT    NOT NULL,
   descricao      TEXT,
@@ -45,7 +45,7 @@ CREATE TABLE servicos (
 );
 
 -- quais profissionais executam quais serviços (N:N)
-CREATE TABLE servico_profissional (
+CREATE TABLE IF NOT EXISTS servico_profissional (
   servico_id      INTEGER NOT NULL REFERENCES servicos(id) ON DELETE CASCADE,
   profissional_id INTEGER NOT NULL REFERENCES profissionais(id) ON DELETE CASCADE,
   PRIMARY KEY (servico_id, profissional_id)
@@ -53,7 +53,7 @@ CREATE TABLE servico_profissional (
 
 -- ---------------------------------------------------------------- disponibilidade
 -- horário de funcionamento recorrente da loja (0=domingo ... 6=sábado)
-CREATE TABLE horarios (
+CREATE TABLE IF NOT EXISTS horarios (
   dia_semana INTEGER PRIMARY KEY CHECK (dia_semana BETWEEN 0 AND 6),
   abre       TEXT NOT NULL,            -- 'HH:MM' local (America/Sao_Paulo)
   fecha      TEXT NOT NULL,
@@ -62,7 +62,7 @@ CREATE TABLE horarios (
 );
 
 -- exceções por data (feriado fechado / horário especial)
-CREATE TABLE excecoes (
+CREATE TABLE IF NOT EXISTS excecoes (
   id      INTEGER PRIMARY KEY AUTOINCREMENT,
   data    TEXT NOT NULL UNIQUE,        -- 'YYYY-MM-DD' local
   fechado INTEGER NOT NULL DEFAULT 1 CHECK (fechado IN (0,1)),
@@ -72,7 +72,7 @@ CREATE TABLE excecoes (
 );
 
 -- indisponibilidade pontual de um profissional (almoço, folga, curso)
-CREATE TABLE bloqueios (
+CREATE TABLE IF NOT EXISTS bloqueios (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   profissional_id INTEGER NOT NULL REFERENCES profissionais(id) ON DELETE CASCADE,
   inicio          TEXT NOT NULL,       -- UTC ISO
@@ -81,10 +81,10 @@ CREATE TABLE bloqueios (
   criado_em       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
   CHECK (fim > inicio)
 );
-CREATE INDEX idx_bloqueios_prof ON bloqueios(profissional_id, inicio);
+CREATE INDEX IF NOT EXISTS idx_bloqueios_prof ON bloqueios(profissional_id, inicio);
 
 -- ---------------------------------------------------------------- agenda
-CREATE TABLE agendamentos (
+CREATE TABLE IF NOT EXISTS agendamentos (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   codigo             TEXT    NOT NULL UNIQUE,          -- id público (link/consulta/ics)
   cliente_id         INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
@@ -106,16 +106,16 @@ CREATE TABLE agendamentos (
   motivo_cancelamento TEXT,
   CHECK (fim > inicio)
 );
-CREATE INDEX idx_ag_prof_inicio  ON agendamentos(profissional_id, inicio);
-CREATE INDEX idx_ag_cliente      ON agendamentos(cliente_id, inicio DESC);
-CREATE INDEX idx_ag_status_inicio ON agendamentos(status, inicio);
+CREATE INDEX IF NOT EXISTS idx_ag_prof_inicio  ON agendamentos(profissional_id, inicio);
+CREATE INDEX IF NOT EXISTS idx_ag_cliente      ON agendamentos(cliente_id, inicio DESC);
+CREATE INDEX IF NOT EXISTS idx_ag_status_inicio ON agendamentos(status, inicio);
 -- trava dura contra overbooking: um profissional não tem dois atendimentos no mesmo instante
-CREATE UNIQUE INDEX idx_ag_slot_unico
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ag_slot_unico
   ON agendamentos(profissional_id, inicio)
   WHERE status IN ('agendado','confirmado','concluido');
 
 -- ---------------------------------------------------------------- sessões e auditoria
-CREATE TABLE sessoes (
+CREATE TABLE IF NOT EXISTS sessoes (
   token_hash TEXT PRIMARY KEY,        -- sha256(token) — o token em claro nunca é gravado
   usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
   criada_em  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
@@ -124,9 +124,9 @@ CREATE TABLE sessoes (
   ip         TEXT,
   user_agent TEXT
 );
-CREATE INDEX idx_sessoes_usuario ON sessoes(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_sessoes_usuario ON sessoes(usuario_id);
 
-CREATE TABLE eventos (
+CREATE TABLE IF NOT EXISTS eventos (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   tipo        TEXT NOT NULL,          -- agendamento.criado, agendamento.cancelado, usuario.excluido...
   ator_id     INTEGER REFERENCES usuarios(id),
@@ -134,10 +134,10 @@ CREATE TABLE eventos (
   payload     TEXT,                   -- JSON
   criado_em   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );
-CREATE INDEX idx_eventos_tipo ON eventos(tipo, criado_em DESC);
+CREATE INDEX IF NOT EXISTS idx_eventos_tipo ON eventos(tipo, criado_em DESC);
 
 -- ---------------------------------------------------------------- configurações
-CREATE TABLE configuracoes (
+CREATE TABLE IF NOT EXISTS configuracoes (
   chave  TEXT PRIMARY KEY,
   valor  TEXT NOT NULL,
   descricao TEXT

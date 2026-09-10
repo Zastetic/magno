@@ -3,15 +3,20 @@
 Legenda: `[ ]` pendente · `[x]` feito · cada fase só fecha com a suíte de testes verde.
 Porta 8100 · banco `data/magno.db` (testes usam `MAGNO_DB=/tmp/test-magno.db`).
 
-## F0 — Esqueleto do projeto
-- [ ] `scripts/run.sh` (cria/ativa venv, sobe uvicorn em 8100 com `--reload` em dev)
-- [ ] `server/main.py` com FastAPI + `/api/saude` + static de `web/`
-- [ ] `server/db.py`: executa `docs/schema.sql`, seed idempotente, `PRAGMA foreign_keys=ON`, WAL
-- [ ] `.env.local` (`MAGNO_DB`, `MAGNO_PORTA`, `MAGNO_TOKEN_TTL_MIN`) + `.env.example`
-- [ ] `.gitignore` (`.env.local`, `.cloudflared_token`, `data/*.db`, `venv/`, `__pycache__`)
-- [ ] `README.md` com como rodar
-- [ ] `git add -A && git commit -m "chore: esqueleto do projeto + schema v1"`
-- **Pronto quando:** `curl 127.0.0.1:8100/api/saude` responde `{"ok":true}` e o banco nasce com as 4 configurações, 7 horários e 4 serviços do seed.
+## F0 — Esqueleto do projeto ✅ (fechada 2026-09-09)
+- [x] `scripts/run.sh` (cria/ativa venv, sobe uvicorn em 8100 com `--reload` em dev)
+- [x] `server/main.py` com FastAPI + `/api/saude` + static de `web/` (lifespan, sem `on_event`)
+- [x] `server/db.py`: executa `docs/schema.sql`, seed idempotente, `PRAGMA foreign_keys=ON`, WAL, `busy_timeout=5000`
+- [x] `docs/schema.sql` com `IF NOT EXISTS` em tudo → boot repetido não recria/duplica nada
+- [x] `.env.local` + `.env.example` (`MAGNO_DB` no ext4, ver D21)
+- [x] `.gitignore` (`.env.local`, `.cloudflared_token`, `data/*.db`, `venv/`, `__pycache__`)
+- [x] `README.md` com como rodar
+- [x] `tests/test_smoke.py` — 7 testes, **7 passaram** (schema idempotente, 11 tabelas, 8 índices,
+      `/api/saude`, headers de segurança, 413 de corpo grande, SPA na mesma origem)
+- [x] `git commit "feat: F0 — esqueleto, banco SQLite e health-check"`
+- **Pronto quando:** `curl 127.0.0.1:8100/api/saude` responde `{"ok":true}` e o banco nasce com as 4 configurações, 7 horários e 4 serviços do seed. **Verificado:** `ok: true`, 12 configurações, 7 horários, 4 serviços, `integridade: ok`.
+- ⚠️ Observado: o boot leva ~15 s porque o venv e o código estão em `/mnt/d` (9p). Opcional depois:
+  criar o venv em `~/.local/share/magno/venv` para reload rápido — não é bloqueio.
 
 ## F1 — Auth e segurança
 - [ ] `server/auth.py`: `pbkdf2_sha256`, token opaco (`sha256` no banco), TTL 24 h, logout revogando

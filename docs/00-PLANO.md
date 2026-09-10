@@ -135,6 +135,10 @@ Admin (PC)       ─┘                │ tunnel cloudflared (connector token)
                        serve também o SPA em web/ (mesma origem, sem CORS)
 ```
 
+- **Banco:** `~/.local/share/magno/magno.db`, no ext4 nativo do WSL — **nunca em `/mnt/d`**,
+  que é DrvFs/9p e grava ~238x mais devagar (medido, ver `03-DECISOES.md` D21). O backup diário
+  copia o arquivo para `~/magno/data/backups/` no D:.
+
 - **Backend:** Python 3.11 + FastAPI + SQLite (mesmo padrão do `~/biblioteca_escolar/mvp`
   que já funciona em produção — reaproveitar auth, middlewares de segurança, camada de
   config e os testes).

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Status do sistema — Barbearia Magnum</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  /* página interna de verificação: usa os mesmos tokens do site */
+  .painel { max-width: 680px; margin: 60px auto; padding: 0 24px; }
+  .painel h1 { font-size: 32px; margin: 0 0 6px; }
+  .painel .kicker { margin-bottom: 10px; }
+  .lista-status { list-style: none; margin: 26px 0 0; padding: 0; }
+  .lista-status li { padding: 12px 0; border-bottom: 1px solid var(--linha); font-size: 14px; }
+  .lista-status strong { color: var(--latao); font-weight: 500; }
+  .lista-status li:first-child { border-top: 1px solid var(--linha); }
+  code { background: #0f0b08; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+  a.voltar { display: inline-block; margin-top: 26px; font-size: 13px; color: var(--tinta-2); }
+</style>
+</head>
+<body>
+  <main class="painel">
+    <p class="kicker">Verificação interna</p>
+    <h1>Status do sistema</h1>
+    <p style="color:var(--tinta-2);font-size:15px">
+      Confere se o servidor e o banco responderam. Serve para a equipe, não para o cliente.
+    </p>
+    <ul class="lista-status" id="status" aria-live="polite">
+      <li>Consultando <code>/api/saude</code>…</li>
+    </ul>
+    <a class="voltar" href="index.html">← voltar para o site</a>
+  </main>
+  <script src="status.js"></script>
+</body>
+</html>

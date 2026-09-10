@@ -1,20 +1,280 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Barbearia Magno</title>
-  <link rel="stylesheet" href="styles.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Barbearia Magnum — corte, barba e navalha com hora marcada</title>
+<meta name="description" content="Agende corte, barba e navalha na Barbearia Magnum: escolha o serviço, o barbeiro e o horário pelo celular.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 30'%3E%3Crect x='2' y='2' width='14' height='26' rx='7' fill='none' stroke='%23c69347' stroke-width='1.6'/%3E%3Cg stroke='%23c69347' stroke-width='1.2'%3E%3Cline x1='0' y1='11' x2='18' y2='5'/%3E%3Cline x1='0' y1='19' x2='18' y2='13'/%3E%3Cline x1='0' y1='27' x2='18' y2='21'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+
+<!-- =====================================================================
+     LAYOUT PARA APRESENTAÇÃO (F2 antecipada) — dados de exemplo.
+     Trocar antes de publicar de verdade:
+       · endereço, telefone/WhatsApp, Instagram, ano de fundação
+       · nomes dos barbeiros e fotos (hoje é monograma, sem foto)
+       · horários reais de funcionamento
+       · preços/durações (batem com o seed de docs/schema.sql)
+     Quando o sistema estiver ligado, estes blocos passam a vir de
+     /api/publica/servicos, /api/publica/equipe e /api/publica/site.
+     ===================================================================== -->
 </head>
-<body>
-  <main class="cartao">
-    <p class="marca">Barbearia Magno</p>
-    <h1>Base do sistema no ar</h1>
-    <p class="sub">Etapa F0 — esqueleto, banco SQLite e health-check. As telas de agendamento entram na F2.</p>
-    <ul class="status" id="status" aria-live="polite">
-      <li>Consultando <code>/api/saude</code>…</li>
-    </ul>
-  </main>
-  <script src="app.js"></script>
+<body class="composicao-editorial">
+
+<header class="topo">
+  <div class="limite">
+    <a class="marca" href="./">
+      <svg class="poste" viewBox="0 0 18 30" aria-hidden="true">
+        <defs><clipPath id="posteClipe"><rect x="2" y="2" width="14" height="26" rx="7"/></clipPath></defs>
+        <g clip-path="url(#posteClipe)" stroke="var(--latao)" stroke-width="1.5" opacity=".85">
+          <line x1="-1" y1="12" x2="19" y2="4"/>
+          <line x1="-1" y1="20" x2="19" y2="12"/>
+          <line x1="-1" y1="28" x2="19" y2="20"/>
+        </g>
+        <rect x="2" y="2" width="14" height="26" rx="7" fill="none" stroke="var(--latao)" stroke-width="1.5"/>
+      </svg>
+      Magnum
+      <small>Barbearia</small>
+    </a>
+    <nav class="nav" id="nav">
+      <a href="#servicos">Serviços</a>
+      <a href="#equipe">Quem corta</a>
+      <a href="#como">Como funciona</a>
+      <a href="#contato">Onde fica</a>
+    </nav>
+    <a class="btn btn-vazado" href="#contato">Agendar</a>
+    <button class="menu-botao" id="menuBotao" aria-label="Abrir menu" aria-expanded="false" aria-controls="nav">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ------------------------------------------------------------- hero -->
+  <section class="hero">
+    <div class="limite hero-grade">
+      <div>
+        <p class="kicker">Barbearia · Centro · desde 2019</p>
+        <h1>Corte, barba e navalha <em>com hora marcada</em>.</h1>
+        <p class="linha-fina">
+          Escolha o serviço, o barbeiro e o horário pelo celular. Chegue na hora
+          do seu atendimento — sem fila e sem espera no balcão.
+        </p>
+        <div class="acoes">
+          <a class="btn btn-cheio" href="#contato">Agendar horário</a>
+          <a class="btn btn-texto" href="#servicos">Ver serviços e preços</a>
+        </div>
+
+        <dl class="selos">
+          <div><dt>3</dt><dd>barbeiros na casa</dd></div>
+          <div><dt>30 min</dt><dd>por corte, em média</dd></div>
+          <div><dt>Seg–Sáb</dt><dd>aberto a semana toda</dd></div>
+        </dl>
+      </div>
+
+      <aside class="cartao-hoje">
+        <p class="rotulo">Hoje na cadeira</p>
+        <p class="hora-grande" id="horaHoje">09:00 — 19:00</p>
+        <p class="selo-status" id="seloStatus"><i></i><span>carregando…</span></p>
+        <hr>
+        <p class="rotulo">Horários livres hoje</p>
+        <ul class="lista-vagas">
+          <li>14:30</li>
+          <li>15:00</li>
+          <li>16:30</li>
+          <li>17:00</li>
+        </ul>
+        <div class="pe">
+          <span>Atualizado ao abrir a agenda</span>
+          <a href="#contato">Ver todos →</a>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- -------------------------------------------------------- funcionamento -->
+  <section class="faixa">
+    <div class="limite">
+      <ul>
+        <li><dt>Segunda a quinta</dt><dd>09:00 — 19:00</dd></li>
+        <li><dt>Sexta</dt><dd>09:00 — 20:00</dd></li>
+        <li><dt>Sábado</dt><dd>08:00 — 18:00</dd></li>
+        <li class="fechado" id="linhaDomingo"><dt>Domingo</dt><dd>Fechado</dd></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ---------------------------------------------------------- serviços -->
+  <section class="secao" id="servicos">
+    <div class="limite">
+      <div class="cabeca-secao">
+        <h2>Serviços</h2>
+        <div class="regua"></div>
+        <span>Tempo e preço, sem surpresa</span>
+      </div>
+
+      <ul class="menu-servicos">
+        <li><a href="#contato">
+          <span class="nome">Corte masculino</span><span class="guia"></span>
+          <span class="dur">30 min</span><span class="preco">R$ 45</span>
+          <span class="desc">Tesoura ou máquina, acabamento na navalha e pomada no fim.</span>
+        </a></li>
+        <li><a href="#contato">
+          <span class="nome">Barba na navalha</span><span class="guia"></span>
+          <span class="dur">30 min</span><span class="preco">R$ 35</span>
+          <span class="desc">Toalha quente, óleo e o fio no sentido do pelo.</span>
+        </a></li>
+        <li><a href="#contato">
+          <span class="nome">Corte + barba</span><span class="guia"></span>
+          <span class="dur">1 h</span><span class="preco">R$ 70</span>
+          <span class="desc">O combo de sempre, com tempo para fazer os dois com calma.</span>
+        </a></li>
+        <li><a href="#contato">
+          <span class="nome">Degradê navalhado</span><span class="guia"></span>
+          <span class="dur">45 min</span><span class="preco">R$ 55</span>
+          <span class="desc">Fade fechado, sem marca de máquina aparente.</span>
+        </a></li>
+        <li><a href="#contato">
+          <span class="nome">Sobrancelha na navalha</span><span class="guia"></span>
+          <span class="dur">15 min</span><span class="preco">R$ 20</span>
+          <span class="desc">Só o desenho, sem afinar demais.</span>
+        </a></li>
+        <li><a href="#contato">
+          <span class="nome">Corte infantil</span><span class="guia"></span>
+          <span class="dur">30 min</span><span class="preco">R$ 40</span>
+          <span class="desc">Até 10 anos, com banquinho e paciência.</span>
+        </a></li>
+        <li><a href="#contato">
+          <span class="nome">Platinado</span><span class="guia"></span>
+          <span class="dur">1 h 30</span><span class="preco">R$ 180</span>
+          <span class="desc">Descoloração e matização — precisa marcar com antecedência.</span>
+        </a></li>
+      </ul>
+
+      <p class="nota">
+        O tempo de cada serviço é o que reserva a cadeira. Se você marcar dois
+        seguidos, a agenda já encaixa um depois do outro.
+      </p>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------ equipe -->
+  <section class="secao" id="equipe">
+    <div class="limite">
+      <div class="cabeca-secao">
+        <h2>Quem corta</h2>
+        <div class="regua"></div>
+        <span>Cada um com sua agenda</span>
+      </div>
+
+      <div class="grade-equipe">
+        <article class="barbeiro">
+          <div class="monograma" aria-hidden="true">R</div>
+          <h3>Rafael</h3>
+          <p class="funcao">Degradê e navalha</p>
+          <p>Na casa desde 2019. Gosta de fade fechado e barba desenhada.</p>
+          <div class="tags"><span>corte</span><span>degradê</span><span>barba</span></div>
+        </article>
+        <article class="barbeiro">
+          <div class="monograma" aria-hidden="true">B</div>
+          <h3>Bruno</h3>
+          <p class="funcao">Clássico na tesoura</p>
+          <p>Corte social, infantil e sobrancelha. O mais rápido da casa.</p>
+          <div class="tags"><span>corte</span><span>infantil</span><span>sobrancelha</span></div>
+        </article>
+        <article class="barbeiro">
+          <div class="monograma" aria-hidden="true">D</div>
+          <h3>Diego</h3>
+          <p class="funcao">Barba e desenho</p>
+          <p>Barba na navalha e risco no desenho. Chega cedo nos sábados.</p>
+          <div class="tags"><span>barba</span><span>sobrancelha</span><span>platinado</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------ como funciona -->
+  <section class="secao curta" id="como">
+    <div class="limite">
+      <div class="cabeca-secao">
+        <h2>Como funciona</h2>
+        <div class="regua"></div>
+        <span>Trinta segundos no celular</span>
+      </div>
+
+      <div class="passos">
+        <div class="passo">
+          <span class="num">01</span>
+          <h3>Escolha o serviço</h3>
+          <p>Cada serviço já mostra o tempo que ocupa na cadeira — e o preço que você vai pagar.</p>
+        </div>
+        <div class="passo">
+          <span class="num">02</span>
+          <h3>Escolha o barbeiro e o horário</h3>
+          <p>Só aparecem os horários que estão realmente livres. O que está ocupado não é oferecido.</p>
+        </div>
+        <div class="passo">
+          <span class="num">03</span>
+          <h3>Confirme com seu telefone</h3>
+          <p>Nome, telefone e um PIN de quatro dígitos. Depois é só chegar na hora marcada.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ----------------------------------------------------------- contato -->
+  <section class="secao" id="contato">
+    <div class="limite contato-grade">
+      <div>
+        <div class="cabeca-secao">
+          <h2>Onde fica</h2>
+          <div class="regua"></div>
+        </div>
+        <ul class="dados">
+          <li><span class="campo">Endereço</span><span>Rua Exemplo, 123 — Centro<br>Santos / SP</span></li>
+          <li><span class="campo">WhatsApp</span><span>(13) 90000-0000</span></li>
+          <li><span class="campo">Instagram</span><span>@barbeariamagnum</span></li>
+          <li><span class="campo">Funcionamento</span><span>Seg a sáb — veja os horários acima</span></li>
+        </ul>
+      </div>
+
+      <div class="quadro-agendar">
+        <h3>Marque seu horário</h3>
+        <p>Cancele ou mude o horário pelo próprio site até 2 horas antes do atendimento.</p>
+        <a class="btn btn-cheio" href="#servicos">Agendar agora</a>
+        <a class="btn btn-texto" href="#servicos">Falar no WhatsApp</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="rodape">
+  <div class="limite">
+    <a class="marca" href="./">
+      <svg class="poste" viewBox="0 0 18 30" aria-hidden="true">
+        <defs><clipPath id="posteClipe2"><rect x="2" y="2" width="14" height="26" rx="7"/></clipPath></defs>
+        <g clip-path="url(#posteClipe2)" stroke="var(--latao)" stroke-width="1.5" opacity=".85">
+          <line x1="-1" y1="12" x2="19" y2="4"/>
+          <line x1="-1" y1="20" x2="19" y2="12"/>
+          <line x1="-1" y1="28" x2="19" y2="20"/>
+        </g>
+        <rect x="2" y="2" width="14" height="26" rx="7" fill="none" stroke="var(--latao)" stroke-width="1.5"/>
+      </svg>
+      Magnum
+    </a>
+    <p>© <span id="ano">2026</span> Barbearia Magnum · Santos / SP</p>
+    <nav>
+      <a href="index-b.html">Outra composição</a>
+      <a href="status.html">Status do sistema</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="app.js" defer></script>
 </body>
 </html>

@@ -73,7 +73,26 @@ def test_corpo_grande_e_recusado_com_413():
 
 def test_spa_servida_na_mesma_origem():
     with TestClient(app) as cliente:
-        for caminho, tipo in (("/", "text/html"), ("/app.js", "javascript"), ("/styles.css", "text/css")):
+        for caminho, tipo in (
+            ("/", "text/html"),
+            ("/index-b.html", "text/html"),
+            ("/status.html", "text/html"),
+            ("/app.js", "javascript"),
+            ("/status.js", "javascript"),
+            ("/styles.css", "text/css"),
+        ):
             r = cliente.get(caminho)
             assert r.status_code == 200, caminho
             assert tipo in r.headers["content-type"], (caminho, r.headers["content-type"])
+
+
+def test_home_tem_o_conteudo_da_loja():
+    """A home é o layout institucional: marca, serviços com preço e horários."""
+    with TestClient(app) as cliente:
+        html = cliente.get("/").text
+    for esperado in ("Barbearia Magnum", "Magnum", "Corte masculino", "R$ 45",
+                     "Barba na navalha", "Degradê navalhado", "09:00 — 19:00", "Domingo"):
+        assert esperado in html, f"faltando na home: {esperado}"
+    assert "iframe" not in html.lower()
+    # script inline é bloqueado pela CSP (script-src 'self') — a home não pode ter nenhum
+    assert "<script>" not in html, "home com <script> inline seria bloqueada pela CSP"

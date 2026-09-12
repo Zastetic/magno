@@ -4,9 +4,21 @@ Agendamento online para barbearia: o cliente escolhe serviço, profissional, dia
 a loja vê e administra os próximos atendimentos em formato de agenda.
 
 - **Produção:** https://magnum.autoava.us
+- **Repositório:** https://github.com/Zastetic/magno (privado)
 - **Local:** http://127.0.0.1:8100 (systemd: `magno-server`, `magno-tunnel`)
 - **Stack:** FastAPI + SQLite + SPA servida pelo próprio backend (mesma origem)
 - **Hospedagem:** WSL + `systemd --user` + Cloudflare Tunnel (mesmo esquema do autoava.us)
+
+## Estado hoje
+
+| Área | Estado |
+|---|---|
+| Site institucional (marca, serviços, horários, dinâmica) | ✅ no ar |
+| Login por **e-mail + código de 5 dígitos** (sem senha) | ✅ funcionando |
+| Login com **Google** | ✅ código pronto, rodando com provedor de teste |
+| **Telefone + PIN** (balcão) e senha opcional | ✅ |
+| Agenda (serviço/profissional/dia/horário) e painel da loja | ⏳ F2–F4 do backlog |
+| Envio real de e-mail e credenciais do Google | ⏳ esperando o provedor (`docs/06-LOGIN.md`) →
 
 ## Documentação (leia nesta ordem)
 

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<title>Apresentação — código do site Barbearia Magnum</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  body { font: 15px/1.55 "DejaVu Sans", "IBM Plex Sans", system-ui, Arial, sans-serif;
+         color: #1b1712; background: #fff; max-width: 190mm; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 6px; border-bottom: 3px solid #c69347; padding-bottom: 8px; }
+  h2 { font-size: 20px; margin: 26px 0 8px; padding: 8px 0 6px; color: #7a4c12;
+        border-top: 2px solid #c69347; page-break-before: always; page-break-after: avoid; }
+  h2:first-of-type { page-break-before: avoid; }
+  h3 { font-size: 16px; margin: 18px 0 6px; color: #1b1712; page-break-after: avoid; }
+  h4 { font-size: 14px; margin: 14px 0 4px; color: #55483a; }
+  ul { margin: 4px 0 10px; padding-left: 20px; }
+  li { margin: 3px 0; }
+  code { background: #f4efe6; padding: 1px 4px; border-radius: 3px;
+          font-family: "DejaVu Sans Mono", Consolas, monospace; font-size: 13px; }
+  hr { border: 0; border-top: 1px dashed #cbbda6; margin: 18px 0; }
+  p { margin: 6px 0; }
+  strong { color: #14100b; }
+  em { color: #55483a; }
+</style></head>
+<body><h1>Apresentação — o código do site da Barbearia Magnum</h1>
+<p>Roteiro textual para 5 pessoas (3 de programação, 2 de documentação). Cada tópico abaixo é de
+uma pessoa; cada sub-título é um slide. Tudo o que está escrito aqui existe no projeto
+(<code>~/magno</code> → <code>/mnt/d/projetos_wsl/magno</code>) — números conferidos no dia da montagem.</p>
+<p>Ordem sugerida: T1 → T2 → T3 → T4 → T5. ~5 min por pessoa (3 slides + 1 demo/print).</p>
+<hr />
+<h2>TÓPICO 1 — Pessoa 1 (programação)</h2>
+<h3>"Um servidor só serve o site e o sistema"</h3>
+<p><strong>Slide 1.1 — FastAPI + SQLite na mesma origem (sem CORS, sem build)</strong>
+- <code>server/main.py</code> (701 linhas) é um único app FastAPI: responde a API em <code>/api/...</code> <strong>e</strong>
+  entrega as páginas de <code>web/</code> (<code>app.mount("/", StaticFiles(...))</code>). Por isso não existe CORS:
+  cliente e servidor são o mesmo endereço (D18).
+- Páginas servidas pelo próprio backend: <code>/</code> (home), <code>/login</code> → <code>entrar.html</code>,
+  <code>/perfil</code> → <code>perfil.html</code>, <code>/account</code> → <code>conta.html</code>, <code>status.html</code>.
+- Sobe com uvicorn em <code>127.0.0.1:8100</code> e roda como serviço (<code>systemd --user</code>: <code>magno-server</code>).
+- Banco SQLite no ext4 do WSL (<code>~/.local/share/magno/magno.db</code>), <strong>não</strong> na pasta do projeto:
+  gravar em <code>/mnt/d</code> (DrvFs/9p) é centenas de vezes mais lento — medido, 238x (decisão D21).
+  O backup diário é que copia o <code>.db</code> para a pasta do projeto.
+- Publicação: Cloudflare Tunnel (<code>magno-tunnel</code>) + <code>magnum.autoava.us</code>.</p>
+<p><strong>Slide 1.2 — O health-check conta o estado do sistema em uma chamada</strong>
+- <code>GET /api/saude</code> devolve: versão, hora UTC, estado do banco, quais logins estão ligados e as
+  regras de negócio <strong>lidas do banco</strong>.
+- Resposta real de agora: <code>ok: true</code>, 13 tabelas, 11 índices, <code>integridade: ok</code>,
+  login por telefone+PIN ✅ / e-mail com código ✅ / Google ✅ (em modo de teste),
+  regras <code>slot 30 min · buffer 5 min · antecedência 1 h · janela 60 dias · cancelar até 2 h antes</code>.
+- Tela pronta para mostrar: <code>/status.html</code> consome esse JSON e imprime tudo na página.</p>
+<p><strong>Slide 1.3 — Front-end sem build: SPA vanilla com CSP estrita</strong>
+- HTML + CSS + JS puros em <code>web/</code> (<code>styles.css</code> tem 1158 linhas), zero dependência de build
+  (D13/D18). O que o navegador baixa é exatamente o que está no repositório.
+- Design system único com variáveis CSS (<code>--latao</code>, <code>--papel</code>, <code>--tinta</code>, <code>--fundo</code>) e duas
+  composições da mesma home: <code>index.html</code> (editorial) e <code>index-b.html</code> (placa).
+- A CSP é estrita (<code>script-src 'self'</code>): <strong>nenhum</strong> handler inline — todo comportamento está em
+  arquivo externo (<code>app.js</code>, <code>auth.js</code>, <code>conta.js</code>, <code>perfil.js</code>, <code>turnstile.js</code>).
+- Mobile-first: alvos de toque ≥44 px, campos de 16 px (evita o zoom automático do iOS), menu
+  hambúrguer igual em todas as páginas — auditado por script em 6 páginas × 4 larguras.</p>
+<p><strong>Mostrar na tela:</strong> <code>http://127.0.0.1:8100/status.html</code> (health-check ao vivo) e o <code>styles.css</code>
+(bloco de variáveis no topo).</p>
+<hr />
+<h2>TÓPICO 2 — Pessoa 2 (programação)</h2>
+<h3>"Como o cliente entra: três portas de login e uma sessão por token"</h3>
+<p><strong>Slide 2.1 — Três formas de entrar (uma delas é a principal)</strong>
+- <strong>E-mail + código de 5 dígitos</strong> (entrada principal, D23): <code>POST /api/auth/codigo</code> envia,
+  <code>POST /api/auth/verificar</code> confere. O código vale 10 min, é de uso único, aceita no máximo
+  5 tentativas e o banco guarda só o hash dele.
+- <strong>Google</strong> (D22): OAuth 2.0 <em>authorization code</em> no servidor. O <code>state</code> é de uso único
+  (10 min), o segredo do cliente nunca vai ao navegador e uma conta que já existe com o mesmo
+  e-mail é <strong>vinculada</strong>, não duplicada.
+- <strong>Telefone + PIN de 4 a 6 dígitos</strong> (D16, para o balcão): PINs óbvios são recusados no cadastro
+  (<code>0000</code>, <code>1234</code>, sequências, pedaço do próprio telefone).
+- Senha existe, mas é <strong>atalho opcional</strong> (<code>POST /api/auth/senha</code>) — ninguém é obrigado a criar.
+- Tudo isso é o <code>server/auth.py</code> (423 linhas) + as rotas em <code>server/main.py</code>.</p>
+<p><strong>Slide 2.2 — A sessão é um token opaco, não um JWT</strong>
+- <code>secrets.token_urlsafe(32)</code>; o banco guarda <strong>apenas</strong> <code>sha256(token)</code> na tabela <code>sessoes</code>,
+  com validade de 24 h — token roubado do banco não é utilizável.
+- Logout revoga de verdade (<code>revogada_em</code>): o mesmo token usado de novo devolve 401.
+  <code>POST /api/auth/logout-all</code> derruba todas as sessões da conta (medida de recuperação).
+- O HTML da área logada <strong>não tem dado pessoal</strong>: <code>conta.js</code> só libera a tela depois de validar
+  o Bearer em <code>/api/account</code>; sem token, volta para o login.
+- O token vive no <code>sessionStorage</code> (some ao fechar a aba) e não é cookie.</p>
+<p><strong>Slide 2.3 — O que protege a entrada</strong>
+- PIN/senha nunca em claro: <code>pbkdf2_sha256</code> com sal e 200.000 iterações.
+- Lockout de 5 falhas / 15 min por telefone+IP, e a mensagem de erro é <strong>sempre a mesma</strong> —
+  não revela se o telefone existe.
+- Limite por IP por ação (<code>server/limites.py</code>): 5 contas/hora, 6 códigos/hora, 15 logins/15 min,
+  12 agendamentos/hora e um teto geral de 600 requisições/min.
+- Cabeçalhos de segurança em toda resposta: <code>nosniff</code>, <code>X-Frame-Options: DENY</code>,
+  <code>Referrer-Policy: no-referrer</code>, HSTS atrás do túnel, CSP; corpo acima de 1 MB → 413;
+  SQL 100% parametrizado.
+- Cloudflare Turnstile está <strong>pronto mas desligado</strong> (D14): a chave é amarrada ao domínio, então
+  só liga quando o endereço definitivo estiver fixo.</p>
+<p><strong>Mostrar na tela:</strong> <code>/login</code> (fluxo e-mail → código) e o trecho de <code>auth.py</code> que grava
+<code>sha256(token)</code>.</p>
+<hr />
+<h2>TÓPICO 3 — Pessoa 3 (programação)</h2>
+<h3>"Agendar sem sobrepor: o coração do sistema"</h3>
+<p><strong>Slide 3.1 — Um agendamento pertence a um profissional</strong>
+- <code>POST /api/bookings</code> exige Bearer, valida o telefone no padrão E.164, converte data/hora local
+  (<code>America/Sao_Paulo</code>) para UTC e recusa horário que já passou (400 <code>horario_passado</code>).
+- Só aceita serviço + barbeiro existentes e habilitados entre si (<code>servico_profissional</code>).
+- Guarda <strong>snapshots</strong> de duração e preço no momento da reserva: mudar o preço do serviço depois
+  não reescreve o passado.
+- O campo <code>fim</code> já inclui o buffer de 5 min: o cliente vê 10:00–10:30, a agenda reserva
+  10:00–10:35 (D10).
+- Resultado devolvido: código público do agendamento (<code>mg-...</code>) — é ele que aparece no
+  comprovante e na agenda.</p>
+<p><strong>Slide 3.2 — Duas defesas contra dois clientes no mesmo horário</strong>
+- Defesa 1 (código): consulta de sobreposição dentro da transação —
+  <code>inicio &lt; :fim_novo AND fim &gt; :inicio_novo</code> entre os status ativos → resposta 409
+  <code>horario_ocupado</code> com a mensagem "Esse horário acabou de ser ocupado. Escolha outro."
+- Defesa 2 (banco): índice único <strong>parcial</strong> em <code>(profissional_id, inicio)</code> para status ativos —
+  é a trava dura, vale mesmo com duas requisições simultâneas (D9).
+- Detalhe que já deu erro e foi corrigido: todo <code>except IntegrityError</code> faz <code>rollback()</code> antes de
+  responder 409 — sem isso a conexão continuava segurando o lock e a outra recebia
+  <code>database is locked</code>.
+- Prova: o script de validação do schema roda o cenário de <strong>duas threads no mesmo slot</strong> →
+  uma escrita cria, a outra é recusada, e nenhum horário duplicado fica no banco.</p>
+<p><strong>Slide 3.3 — O banco que sustenta isso (13 tabelas)</strong>
+- <code>usuarios</code>, <code>codigos_email</code>, <code>profissionais</code>, <code>servicos</code>, <code>servico_profissional</code>, <code>horarios</code>,
+  <code>excecoes</code>, <code>bloqueios</code>, <code>agendamentos</code>, <code>sessoes</code>, <code>logins_pendentes</code>, <code>eventos</code>,
+  <code>configuracoes</code> — criadas por <code>docs/schema.sql</code>, com <code>IF NOT EXISTS</code> e seed
+  <code>INSERT OR IGNORE</code> (subir o servidor N vezes não duplica nada).
+- Tempo: tudo gravado em UTC ISO-8601 (<code>2026-09-15T13:00:00Z</code>) e exibido em São Paulo — conversão
+  só na borda (D4/D11). Dinheiro em centavos, inteiro (D5). Telefone é o identificador do cliente,
+  único (D6).
+- Cancelamento <strong>não apaga</strong>: muda status + motivo. Exclusão definitiva de atendimento futuro é só
+  do admin e gera evento. A tabela <code>eventos</code> é a auditoria — responde "quem apagou o atendimento
+  das 15h?".
+- As regras (slot 30 min, buffer 5, antecedência 1 h, janela 60 dias, cancelar até 2 h antes)
+  vivem na tabela <code>configuracoes</code> e são editáveis — <strong>nenhuma delas está escrita no código</strong>.</p>
+<p><strong>Mostrar na tela:</strong> <code>/account</code> agendando um horário e, em seguida, o mesmo horário de novo
+(o 409 na tela). Depois <code>sqlite3 ... "select * from agendamentos"</code>.</p>
+<hr />
+<h2>TÓPICO 4 — Pessoa 4 (documentação)</h2>
+<h3>"A documentação é a fonte da verdade — e ela dirige o código"</h3>
+<p><strong>Slide 4.1 — Antes da primeira linha de código, o projeto escreveu o plano</strong>
+- <code>docs/00-PLANO.md</code>: qual problema existe (a barbearia agenda por WhatsApp, na mão: buraco na
+  agenda, conflito de horário e nenhum histórico), o objetivo, a métrica de sucesso
+  (<strong>agendar em menos de 60 s pelo celular</strong>), atores e permissões (cliente / barbeiro / admin),
+  regras de negócio, arquitetura, telas, riscos e fases.
+- O plano também escreve o que <strong>NÃO</strong> entra na v1: pagamento online, fidelidade, estoque,
+  comissão, múltiplas unidades, app nativo. Escopo fechado por escrito é o que protege o prazo.
+- Ponto de destaque para a banca: a documentação é a razão de o sistema não ter virado um
+  amontoado de telas soltas.</p>
+<p><strong>Slide 4.2 — Decisões numeradas, com consequência técnica (D1 a D25)</strong>
+- <code>docs/03-DECISOES.md</code> registra cada decisão como <strong>pergunta → escolha → consequência</strong>, e não
+  como opinião. Exemplos: D16 (telefone+PIN), D22 (Google OAuth server-side), D23 (código por
+  e-mail em vez de SMS pago), D24 (provedor de e-mail plugável), D25 (primeiro acesso pergunta
+  nome e depois idade).
+- Exemplo com número na mão: a D21 nasceu de uma medição — 200 gravações em SQLite custaram
+  0,002 s no ext4 e 0,462 s na pasta montada do Windows: <strong>238x mais devagar</strong>. Decisão: o banco
+  fica no ext4, o backup no D:.
+- O que ainda está em aberto também fica escrito (dados reais da loja, quem é o admin, a grafia
+  "Magno" × domínio "magnum") — nada fica só na cabeça de alguém.</p>
+<p><strong>Slide 4.3 — Contrato, schema executável e backlog por fase</strong>
+- <code>docs/02-API.md</code>: cada rota com payload, resposta e código de erro padronizado
+  (400 <code>validacao</code>, 401 <code>sessao_invalida</code>, 403 <code>prazo_excedido</code>, 409 <code>slot_ocupado</code>,
+  413 <code>corpo_grande</code>, 429 <code>rate_limit</code>). É o documento que front-end e back-end usam juntos.
+- <code>docs/schema.sql</code> é <strong>executável</strong>: é dele que o banco nasce (tabelas, índices, CHECKs, seed) e
+  também a referência do modelo de dados (<code>docs/01-MODELO-DE-DADOS.md</code>).
+- <code>docs/04-BACKLOG.md</code> organiza o trabalho em fases F0→F7, cada tarefa com <strong>critério de pronto</strong>:
+  F0 (estrutura/banco) e F1 (auth/segurança) fechadas; F2, F4, F6 e F7 com boa parte entregue.
+- <code>docs/05-DEPLOY.md</code> e <code>docs/06-LOGIN.md</code> guardam o passo a passo operacional — inclusive o
+  erro exato do túnel (<code>https</code> na origem em vez de <code>http</code>) e a configuração de e-mail (SPF/DKIM).</p>
+<p><strong>Mostrar na tela:</strong> abrir as 4 pastas/arquivos de <code>docs/</code> e o <code>schema.sql</code> rodando (o banco nasce
+dele).</p>
+<hr />
+<h2>TÓPICO 5 — Pessoa 5 (documentação)</h2>
+<h3>"Como o projeto prova que funciona — e o que ainda não está pronto"</h3>
+<p><strong>Slide 5.1 — Verificação em quatro camadas</strong>
+- <strong>150 testes de servidor</strong> (pytest, banco descartável em <code>/tmp</code>, nunca o banco de verdade):
+  auth, Bearer, código por e-mail, Google, limites, migração de banco e smoke.
+  <em>Conferido agora: <code>150 passed</code>.</em>
+- <strong>Verificação ao vivo na API</strong> (<code>scripts/testa_bearer.py</code>): 34 checagens em 8 blocos —
+  cadastro, login, sessão, agendamento real, <strong>409 no mesmo horário</strong>, listagem da conta e
+  revogação de token. <em>Conferido agora: 34 OK, 0 falhas.</em>
+- <strong>Verificação no navegador</strong> (Playwright): <code>/perfil</code> 24 checagens, login 22, login por e-mail 18,
+  home dinâmica 26, identidade de movimento 15.
+- <strong>Auditoria de celular</strong>: 6 páginas × 4 larguras (360/390/414/768) medindo rolagem horizontal,
+  estouros, alvos &lt; 44 px, texto &lt; 12 px e erros de console — critério de pronto: 0 problemas.
+- <strong>Provas visuais</strong>: 31 prints em <code>docs/provas/</code> (primeiro acesso, agenda com o nome de quem
+  entrou, login por e-mail, home desktop e mobile).</p>
+<p><strong>Slide 5.2 — Privacidade e segurança tratadas como requisito (LGPD)</strong>
+- Coleta o mínimo: nome, telefone e e-mail opcional; o consentimento é gravado com data
+  (<code>consentimento_lgpd_em</code>) e é obrigatório no cadastro.
+- Nenhum dado pessoal no HTML: o Bearer vive no <code>sessionStorage</code> e tudo em <code>/api</code> sai com
+  <code>Cache-Control: no-store</code>.
+- Exclusão de conta está prevista no modelo para <strong>anonimizar</strong> o histórico (marca
+  <code>anonimizado_em</code>, remove o telefone) em vez de apagar o registro — relatório continua coerente.
+- E-mail transacional com provedor plugável: modo <code>arquivo</code> (não envia nada, grava em
+  <code>logs/emails/</code>) para desenvolver e testar; para valer, precisa de provedor + SPF/DKIM no DNS.</p>
+<p><strong>Slide 5.3 — Estado real do site hoje (transparência)</strong>
+- <strong>Funcionando:</strong> home institucional, login por e-mail + código, login com Google (modo de
+  teste), login por telefone + PIN, primeiro acesso em <code>/perfil</code> (nome → idade) e a agenda do
+  cliente em <code>/account</code> com reserva real de horário.
+- <strong>Pendente e assumido:</strong> a grade de dias e horas do cartão de agendamento ainda é <strong>fixa no
+  HTML</strong> (16 a 20/09/2026) — passada essa data não dá mais para agendar. A correção é a fase F3
+  (motor de disponibilidade, com <code>horarios</code>, <code>excecoes</code>, <code>bloqueios</code> e buffer).
+- <strong>Pendente:</strong> painel da loja (F5), remarcar/cancelar pelo cliente (F4), CSV e páginas de
+  privacidade (F6).
+- <strong>Falta 1 campo no painel Cloudflare</strong> para o domínio funcionar: trocar o tipo de <code>HTTPS</code> para
+  <code>HTTP</code> no Public Hostname <code>magnum.autoava.us</code> → <code>127.0.0.1:8100</code> (é a causa do 502 atual).
+- <strong>Nota honesta para quem for responder perguntas:</strong> o script <code>scripts/valida_schema.py</code> hoje
+  acusa 16/17 por causa de uma checagem desatualizada ("11 tabelas" — o schema já tem 13, com
+  <code>codigos_email</code> e <code>logins_pendentes</code>). O problema é o script, não o banco: são 16 verificações
+  OK e a que falha é só a lista de nomes de tabela.</p>
+<p><strong>Mostrar na tela:</strong> <code>pytest</code> rodando (150 passando) e um print de <code>docs/provas/</code>.</p>
+<hr />
+<h2>Cola rápida (para quem for responder perguntas)</h2>
+<ul>
+<li>Site: <code>~/magno</code> → <code>/mnt/d/projetos_wsl/magno</code> · porta 8100 · banco em <code>~/.local/share/magno/magno.db</code>.</li>
+<li>Stack: Python 3.11 + FastAPI + SQLite (SQL puro, sem ORM) + SPA vanilla, sem build.</li>
+<li>Números de hoje: 13 tabelas · 11 índices · 150 testes pytest · 34 checagens ao vivo ·
+  31 prints de prova · 16 commits.</li>
+<li>Comandos: <code>./scripts/run.sh</code> (subir) · <code>MAGNO_DB=/tmp/test.db ./venv/bin/pytest tests/ -q</code>
+  (suíte) · <code>./venv/bin/python scripts/testa_bearer.py</code> (API ao vivo) ·
+  <code>systemctl --user restart magno-server</code> (reiniciar).</li>
+</ul></body></html>

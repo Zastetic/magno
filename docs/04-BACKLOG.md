@@ -89,7 +89,10 @@ Porta 8100 · banco `data/magno.db` (testes usam `MAGNO_DB=/tmp/test-magno.db`).
 
 ## F6 — Polimento
 - [ ] `GET /api/admin/relatorio` CSV com BOM (`;`) — agendamentos, clientes, faturamento
-- [ ] Revisão mobile (alvos ≥44 px, agenda em coluna única <700 px) com screenshots de prova
+- [x] Revisão mobile (feita antes da hora, 09/2026): alvos ≥44 px, nada de texto < 12 px, campos de
+      16 px (sem zoom do iOS), menu hambúrguer em todas as páginas, agenda empilhada abaixo de 940 px,
+      lista de dias com rolagem horizontal no celular estreito. Medido por `scripts/audita_mobile.py`
+      em 6 páginas × 4 larguras (360/390/414/768): 0 problemas, prints em `/tmp/mobile/`
 - [ ] Acessibilidade: labels, foco visível, contraste AA, teclado no fluxo de agendamento
 - [ ] Rate limit geral por IP, mensagens de erro em pt-BR revisadas
 - [ ] Backup diário (`scripts/backup.sh` + cronjob Hermes `no_agent`)

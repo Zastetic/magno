@@ -66,6 +66,7 @@ P=/home/vh450/.hermes/hermes-agent/venv/bin/python
 $P scripts/testa_perfil.py         # primeiro acesso: nome → idade → agenda + reserva (24 checagens, gera prints em docs/provas/)
 $P scripts/testa_login.py          # telefone+PIN, Google, guarda do /perfil e revogação (22)
 $P scripts/testa_email_login.py    # login por código: sobe um servidor descartável na 8123 em modo arquivo (18)
+$P scripts/audita_mobile.py        # celular: 6 páginas × 4 larguras (alvo de toque, texto, rolagem) — tem que dar 0
 ```
 
 Os testes usam banco descartável — o banco de desenvolvimento nunca é tocado.

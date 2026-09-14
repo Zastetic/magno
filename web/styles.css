@@ -999,6 +999,12 @@ input:-webkit-autofill {
   .faixa li:nth-child(2) { border-right: 0; }
   .faixa li:nth-child(3), .faixa li:nth-child(4) { border-top: 1px solid var(--linha); }
   .faixa li:nth-child(3) { padding-left: 0; }
+  /* tablet/celular: alvo de toque de 44px (WCAG 2.5.5) */
+  .nav a, .nav button, .rodape a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .marca { min-height: 44px; }
+  .btn, .time-options button, .menu-servicos a, .service-option, .barber-option, .date-option { min-height: 46px; }
+  /* 16px nos campos: abaixo disso o iOS dá zoom sozinho ao focar */
+  .campo input, .campo select, .campo textarea { font-size: 16px; }
 }
 
 @media (max-width: 700px) {
@@ -1025,8 +1031,8 @@ input:-webkit-autofill {
     flex-direction: column;
     justify-content: center;
     gap: 5px;
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
     margin-left: auto;
     background: none;
     border: 1px solid var(--linha-forte);
@@ -1051,8 +1057,22 @@ input:-webkit-autofill {
   .menu-servicos .preco { grid-column: 2; grid-row: 1 / span 2; align-self: center; min-width: 0; }
   .menu-servicos .desc { margin-top: 2px; }
   .dados li { grid-template-columns: 1fr; gap: 4px; }
-  .selos { gap: 22px; }
+  .selos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 30px; }
+  .selos dt { font-size: 21px; }
+  .selos dd { letter-spacing: .1em; }
+  .hero h1 { text-wrap: balance; }   /* evita o ponto final órfão numa linha só dele */
   .rodape nav { margin-left: 0; }
+  /* menu aberto no celular: cada item é uma linha larga (inclusive os botões da conta) */
+  .nav.aberto a, .nav.aberto button, .nav.aberto .account-switch {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--linha);
+    font-size: 15px;
+    letter-spacing: .02em;
+  }
+  .nav.aberto .account-switch { color: var(--tinta-2); }
+  .nav.aberto [hidden] { display: none; }
 }
 
 /* -------------------------------------------------------- área do cliente */
@@ -1101,3 +1121,29 @@ input:-webkit-autofill {
 .booking-identity small { display:block; color:var(--tinta-3); font-size:12px; }
 .booking-identity .btn { flex:none; }
 @media (max-width: 760px) { .client-page { padding-top:42px; }.client-intro { margin-bottom:28px; align-items:start; }.client-avatar { width:50px; height:50px; font-size:23px; }.booking-layout { grid-template-columns:1fr; }.booking-card,.schedule-card { padding:22px; }.field-row,.barber-options { grid-template-columns:1fr; }.barber-option { padding:12px; }.upcoming-booking { padding:22px; }.date-option b { font-size:24px; }.passos-perfil { gap:16px; }.booking-identity { flex-direction:column; align-items:flex-start; } }
+
+/* ------------------------------------ celular: leitura, toque e rolagem da grade
+   Este bloco fica no FIM do arquivo de propósito: assim vence por ordem de cascata as
+   declarações de 10–11px espalhadas acima (kicker, rótulos, chips de dia, etapas). */
+@media (max-width: 940px) {
+  .kicker, .rotulo, .campo label, .dados dt, .dados .campo, .faixa dt, .faixa dd, .selos dd,
+  .barbeiro .funcao, .barbeiro .tags span, .separador, .booking-step, .passos-perfil li,
+  .passos-perfil li b, .date-option span, .date-option small, .barber-option small,
+  .booking-identity small, .upcoming-booking .rotulo, .hours-label, .marca small,
+  .composicao-placa .marca-sub, .composicao-placa .placa .kicker { font-size: 12px; }
+  .passos-perfil li b { width: 26px; height: 26px; }
+  /* em 768 os dois cartões da agenda ficavam com ~35px por coluna: empilha antes disso */
+  .booking-layout { grid-template-columns: 1fr; }
+  .booking-card, .schedule-card { min-width: 0; }
+}
+
+@media (max-width: 700px) {
+  /* cabeçalho opaco: no celular o conteúdo passa rente e o texto de trás aparecia */
+  .topo { background: var(--fundo); }
+  /* 5 dias em 5 colunas espremiam os botões a ~40px de largura: a lista rola na horizontal */
+  .date-list { grid-auto-flow: column; grid-auto-columns: minmax(56px, 1fr); grid-template-columns: none;
+               gap: 7px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
+  .date-option { min-width: 56px; scroll-snap-align: start; }
+  /* respiro embaixo para o dedão não cobrir o botão de confirmar */
+  .client-page { padding-bottom: 96px; }
+}

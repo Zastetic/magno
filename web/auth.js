@@ -260,6 +260,29 @@
   var ano = document.getElementById("ano");
   if (ano) ano.textContent = String(new Date().getFullYear());
 
+  // Menu do celular: abaixo de 700px a navegação vira uma lista atrás deste botão.
+  var menuBotao = document.getElementById("menuBotao");
+  var navegacao = document.getElementById("nav");
+  if (menuBotao && navegacao) {
+    menuBotao.addEventListener("click", function () {
+      var aberto = navegacao.classList.toggle("aberto");
+      menuBotao.setAttribute("aria-expanded", String(aberto));
+    });
+    navegacao.addEventListener("click", function (evento) {
+      if (evento.target.closest("a, button")) {
+        navegacao.classList.remove("aberto");
+        menuBotao.setAttribute("aria-expanded", "false");
+      }
+    });
+    document.addEventListener("keydown", function (evento) {
+      if (evento.key === "Escape" && navegacao.classList.contains("aberto")) {
+        navegacao.classList.remove("aberto");
+        menuBotao.setAttribute("aria-expanded", "false");
+        menuBotao.focus();
+      }
+    });
+  }
+
   // A tela de login continua disponível mesmo com uma sessão aberta.
   // Isso permite trocar de pessoa neste navegador; o próximo login substitui o Bearer.
 })();

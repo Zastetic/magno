@@ -64,6 +64,41 @@
     location.replace('/login?notice=logout');
   });
 
+  // O avatar é o botão da conta: clicar nele abre o menu com "Meu perfil" e "Sair".
+  const avatar = document.querySelector('#clientAvatar');
+  const menuConta = document.querySelector('#menuConta');
+  function fecharMenu() {
+    if (!menuConta || menuConta.hidden) return;
+    menuConta.hidden = true;
+    avatar.setAttribute('aria-expanded', 'false');
+  }
+  function alternarMenu() {
+    const abrir = menuConta.hidden;
+    menuConta.hidden = !abrir;
+    avatar.setAttribute('aria-expanded', String(abrir));
+    if (abrir) {
+      const primeiro = menuConta.querySelector('[role="menuitem"]');
+      if (primeiro) primeiro.focus();
+    }
+  }
+  avatar.addEventListener('click', (evento) => {
+    evento.stopPropagation();
+    alternarMenu();
+  });
+  document.addEventListener('click', (evento) => {
+    if (!menuConta.contains(evento.target) && evento.target !== avatar) fecharMenu();
+  });
+  document.addEventListener('keydown', (evento) => {
+    if (evento.key === 'Escape') {
+      fecharMenu();
+      avatar.focus();
+    }
+  });
+  document.querySelector('#menuSair').addEventListener('click', async () => {
+    await window.MagnoAuth.encerrarSessao();
+    location.replace('/login?notice=logout');
+  });
+
   document.querySelector('#serviceOptions').addEventListener('click', (event) => {
     const button = event.target.closest('button');
     if (button) selectOption(event.currentTarget, button, (item) => Object.assign(state, { service: item.dataset.service, price: item.dataset.price, duration: item.dataset.duration }));

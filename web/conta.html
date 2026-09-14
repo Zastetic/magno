@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=perfil-1">
+<link rel="stylesheet" href="styles.css?v=conta-menu-2">
 </head>
 <body class="composicao-editorial account-loading">
 <header class="topo"><div class="limite">
@@ -23,7 +23,13 @@
   <div class="limite">
     <section class="client-intro">
       <div><p class="kicker">Minha agenda</p><h1>Fala, <em id="clientName">—</em>.</h1><p id="clientSubtext">Sua agenda, do seu jeito.</p></div>
-      <div class="client-avatar" id="clientAvatar" aria-label="Sua conta">—</div>
+      <div class="avatar-area">
+        <button class="client-avatar" id="clientAvatar" type="button" aria-label="Sua conta" aria-haspopup="menu" aria-expanded="false" aria-controls="menuConta">—</button>
+        <div class="menu-conta" id="menuConta" role="menu" hidden>
+          <a role="menuitem" href="/perfil">Meu perfil</a>
+          <button role="menuitem" type="button" id="menuSair">Sair</button>
+        </div>
+      </div>
     </section>
 
     <section class="booking-layout" aria-label="Novo agendamento" id="bookingArea">
@@ -75,5 +81,5 @@
 </main>
 <footer class="rodape"><div class="limite"><p>© <span id="year">2026</span> Barbearia Magnum · Santos / SP</p><nav><a href="/perfil">Meu perfil</a><a href="status.html">Status do sistema</a></nav></div></footer>
 <script src="auth.js?v=perfil-1" defer></script>
-<script src="conta.js?v=perfil-1" defer></script>
+<script src="conta.js?v=conta-menu-2" defer></script>
 </body></html>

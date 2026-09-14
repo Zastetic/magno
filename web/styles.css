@@ -1083,6 +1083,15 @@ input:-webkit-autofill {
 .client-intro h1 em { color: var(--latao-claro); font-weight: 400; }
 .client-intro p:not(.kicker) { max-width: 520px; color: var(--tinta-2); margin: 0; }
 .client-avatar { display: grid; place-items: center; flex: none; width: 66px; height: 66px; border: 1px solid var(--linha-forte); border-radius: 50%; color: var(--latao-claro); font: 30px/1 var(--serif); background: var(--latao-fundo); }
+/* Avatar clicável: abre o menu da conta (Meu perfil / Sair) */
+.avatar-area { position: relative; flex: none; }
+button.client-avatar { padding: 0; cursor: pointer; }
+button.client-avatar:hover { border-color: var(--latao); }
+button.client-avatar:focus-visible { outline: 2px solid var(--latao); outline-offset: 3px; }
+.menu-conta { position: absolute; top: calc(100% + 10px); right: 0; z-index: 40; display: grid; gap: 2px; min-width: 172px; padding: 6px; border: 1px solid var(--linha-forte); border-radius: var(--raio); background: var(--fundo-alto); box-shadow: 0 18px 34px rgba(0,0,0,.38); }
+.menu-conta[hidden] { display: none; }
+.menu-conta a, .menu-conta button { display: block; width: 100%; padding: 11px 12px; border: 0; border-radius: calc(var(--raio) - 4px); color: var(--tinta); background: transparent; font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
+.menu-conta a:hover, .menu-conta button:hover, .menu-conta a:focus-visible, .menu-conta button:focus-visible { color: var(--latao-claro); background: var(--latao-fundo); outline: none; }
 .booking-layout { display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; align-items: start; }
 .booking-card, .schedule-card { padding: 30px; border: 1px solid var(--linha-forte); border-radius: var(--raio); background: var(--papel); }
 .booking-heading { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 25px; }

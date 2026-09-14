@@ -107,6 +107,7 @@ hr { border: 0; border-top: 1px solid var(--linha); margin: 26px 0; }
   transition: color .18s, border-color .18s;
 }
 .nav a:hover { color: var(--tinta); border-color: var(--linha-forte); }
+.account-switch { appearance:none; border:0; background:transparent; padding:0; color:var(--tinta-3); font:inherit; font-size:13px; letter-spacing:.04em; cursor:pointer; transition:color .18s; }.account-switch:hover { color:var(--latao-claro); }
 
 /* ---------------------------------------------------------------- botões */
 .btn {
@@ -918,6 +919,72 @@ input:-webkit-autofill {
   .menu-servicos a:hover, .barbeiro:hover { background: none; }
 }
 
+/* ----------------------------------------------------- chamada final */
+.cta-agendar {
+  text-align: center;
+  border-top: 1px solid var(--linha);
+  background: linear-gradient(180deg, transparent, rgba(198, 147, 71, .05));
+}
+.cta-agendar .limite { max-width: 680px; }
+.cta-agendar h2 { margin: 10px 0 14px; }
+.cta-agendar p:not(.kicker) { color: var(--tinta-2); margin: 0 auto 26px; max-width: 510px; }
+
+.btn-booking {
+  --booking-yellow: #ffd21f;
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  min-width: min(100%, 310px);
+  min-height: 64px;
+  justify-content: center !important;
+  gap: 15px;
+  margin: 18px auto 0;
+  padding: 0 30px;
+  overflow: visible;
+  border: 0;
+  border-radius: 6px;
+  background: var(--booking-yellow) !important;
+  color: #171104 !important;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  box-shadow: 0 9px 22px rgba(255, 210, 31, .26), 0 0 0 2px rgba(255, 210, 31, .12);
+  animation: booking-float 3.4s ease-in-out infinite, booking-glow 2.4s ease-in-out infinite;
+  transition: transform .22s cubic-bezier(.2, .9, .25, 1.35), box-shadow .22s ease, background .22s ease;
+}
+.btn-booking::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -10px;
+  border-radius: 9px;
+  background: radial-gradient(circle, rgba(255, 211, 31, .34), transparent 70%);
+  filter: blur(7px);
+  opacity: .6;
+  transition: opacity .22s ease, transform .22s ease;
+}
+.btn-booking span { font-size: 19px; line-height: 1; transition: transform .22s ease; }
+@media (hover: hover) {
+  .btn-booking:hover {
+    background: #ffe05b !important;
+    color: #120d05;
+    transform: translateY(-5px) scale(1.06);
+    box-shadow: 0 15px 30px rgba(255, 210, 31, .4), 0 0 0 5px rgba(255, 210, 31, .12);
+  }
+  .btn-booking:hover::before { opacity: .85; transform: scale(1.1); }
+  .btn-booking:hover span { transform: translateX(4px); }
+}
+.btn-booking:active { transform: translateY(0) scale(.99); }
+@keyframes booking-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes booking-glow {
+  0%, 100% { box-shadow: 0 9px 22px rgba(255, 210, 31, .26), 0 0 0 2px rgba(255, 210, 31, .12); }
+  50% { box-shadow: 0 12px 27px rgba(255, 210, 31, .35), 0 0 0 7px rgba(255, 210, 31, 0); }
+}
+
 /* ---------------------------------------------------------------- mobile */
 @media (max-width: 940px) {
   .hero-grade { grid-template-columns: 1fr; gap: 40px; }
@@ -987,3 +1054,50 @@ input:-webkit-autofill {
   .selos { gap: 22px; }
   .rodape nav { margin-left: 0; }
 }
+
+/* -------------------------------------------------------- área do cliente */
+.client-page { padding: 68px 0 82px; }
+.client-intro { display: flex; justify-content: space-between; align-items: flex-end; gap: 30px; margin: 0 0 42px; }
+.kicker { color: var(--latao); text-transform: uppercase; letter-spacing: .18em; font-size: 11px; margin: 0 0 12px; }
+.client-intro h1 { margin: 0 0 10px; font-size: clamp(42px, 6vw, 68px); line-height: .95; }
+.client-intro h1 em { color: var(--latao-claro); font-weight: 400; }
+.client-intro p:not(.kicker) { max-width: 520px; color: var(--tinta-2); margin: 0; }
+.client-avatar { display: grid; place-items: center; flex: none; width: 66px; height: 66px; border: 1px solid var(--linha-forte); border-radius: 50%; color: var(--latao-claro); font: 30px/1 var(--serif); background: var(--latao-fundo); }
+.booking-layout { display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; align-items: start; }
+.booking-card, .schedule-card { padding: 30px; border: 1px solid var(--linha-forte); border-radius: var(--raio); background: var(--papel); }
+.booking-heading { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 25px; }
+.booking-heading .rotulo { margin: 2px 0 3px; }
+.booking-heading h2 { font-size: 28px; margin: 0; }
+.booking-step { display: grid; place-items: center; width: 29px; height: 29px; border: 1px solid var(--latao); border-radius: 50%; color: var(--latao-claro); font-size: 10px; letter-spacing: .08em; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.booking-divider { height: 1px; background: var(--linha); margin: 25px 0; }
+.service-options { display: grid; gap: 8px; }
+.service-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 14px 15px; text-align: left; color: var(--tinta); background: var(--fundo-alto); border: 1px solid var(--linha-forte); border-radius: var(--raio); cursor: pointer; font: inherit; transition: border-color .18s, background .18s; }
+.service-option span { color: var(--tinta-3); font-size: 13px; }
+.service-option.selected, .service-option:hover { border-color: var(--latao); background: var(--latao-fundo); }
+.service-option.selected b { color: var(--latao-claro); }
+.barber-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.barber-option { display: flex; align-items: center; gap: 9px; padding: 10px; color: var(--tinta); border: 1px solid var(--linha-forte); border-radius: var(--raio); background: var(--fundo-alto); text-align: left; cursor: pointer; font: inherit; }
+.barber-option i { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--latao-fundo); color: var(--latao-claro); font: 16px var(--serif); }
+.barber-option span { min-width: 0; }.barber-option b,.barber-option small { display:block; }.barber-option small { color: var(--tinta-3); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }.barber-option.selected { border-color: var(--latao); background: var(--latao-fundo); }
+.date-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; margin: 0 0 25px; }
+.date-option { display: grid; justify-items: center; padding: 10px 4px; border: 1px solid var(--linha-forte); border-radius: var(--raio); color: var(--tinta-2); background: var(--fundo-alto); cursor: pointer; font: inherit; }.date-option span,.date-option small { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }.date-option b { font: 28px var(--serif); color: var(--tinta); margin: 3px 0; }.date-option.selected { background: var(--latao); border-color: var(--latao); color: #1a1208; }.date-option.selected b { color: #1a1208; }
+.hours-label { margin: 0 0 10px; }.time-options { display:grid; grid-template-columns: repeat(3,1fr); gap:8px; }.time-options button { padding: 11px 6px; color:var(--tinta); background:var(--fundo-alto); border:1px solid var(--linha-forte); border-radius:var(--raio); cursor:pointer; font:500 14px var(--sans); }.time-options button.selected,.time-options button:hover { color:#1a1208; border-color:var(--latao); background:var(--latao); }
+.booking-summary { margin: 25px 0 14px; padding: 15px; border-left: 2px solid var(--latao); background: var(--latao-fundo); }.booking-summary span,.booking-summary small { display:block; color:var(--tinta-2); font-size:12px; }.booking-summary b { display:block; margin:3px 0; font:24px var(--serif); }.confirm-booking { width:100%; justify-content:center; }.booking-feedback { min-height:18px; margin:12px 0 0; color:var(--latao-claro); font-size:13px; text-align:center; }
+.upcoming-booking { display:flex; justify-content:space-between; align-items:center; margin-top:18px; padding:25px 30px; border:1px dashed var(--linha-forte); border-radius:var(--raio); }.upcoming-booking .rotulo { margin:0 0 5px; }.upcoming-booking h2 { margin:0 0 5px; font-size:25px; }.upcoming-booking p:not(.rotulo) { margin:0; color:var(--tinta-3); font-size:13px; }.upcoming-booking > span { font:50px var(--serif); color:var(--latao); }
+.account-loading .client-page { min-height:70vh; }
+/* /perfil — primeiro acesso em duas perguntas (nome → idade) */
+.passos-perfil { list-style:none; display:flex; gap:26px; margin:0 0 24px; padding:0; border-bottom:1px solid var(--linha); }
+.passos-perfil li { display:flex; align-items:center; gap:9px; padding:0 0 11px; margin-bottom:-1px; border-bottom:2px solid transparent; color:var(--tinta-3); font-size:11px; letter-spacing:.16em; text-transform:uppercase; }
+.passos-perfil li b { display:grid; place-items:center; width:24px; height:24px; flex:none; border:1px solid var(--linha-forte); border-radius:50%; color:var(--tinta-3); font-size:10px; letter-spacing:.06em; }
+.passos-perfil li.ativo { color:var(--latao-claro); border-bottom-color:var(--latao); }
+.passos-perfil li.ativo b { border-color:var(--latao); color:var(--latao-claro); }
+.passos-perfil li:not(.ativo):has(~ li.ativo) { color:var(--tinta-2); }
+/* quem está logado na agenda: o nome vem do perfil, não de um input */
+.booking-identity { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 16px; border:1px dashed var(--linha-forte); border-radius:var(--raio); background:var(--latao-fundo); }
+.booking-identity + .campo { margin-top:18px; }
+.booking-identity .rotulo { margin:0 0 3px; }
+.booking-identity b { display:block; font:24px var(--serif); color:var(--tinta); }
+.booking-identity small { display:block; color:var(--tinta-3); font-size:12px; }
+.booking-identity .btn { flex:none; }
+@media (max-width: 760px) { .client-page { padding-top:42px; }.client-intro { margin-bottom:28px; align-items:start; }.client-avatar { width:50px; height:50px; font-size:23px; }.booking-layout { grid-template-columns:1fr; }.booking-card,.schedule-card { padding:22px; }.field-row,.barber-options { grid-template-columns:1fr; }.barber-option { padding:12px; }.upcoming-booking { padding:22px; }.date-option b { font-size:24px; }.passos-perfil { gap:16px; }.booking-identity { flex-direction:column; align-items:flex-start; } }

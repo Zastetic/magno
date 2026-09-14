@@ -123,10 +123,14 @@ GOOGLE_CLIENT_SECRET=....
 |---|---|---|
 | e-mail | sim, no cadastro pelo site | é como a pessoa entra (código) |
 | telefone | sim, **para agendar** | a loja confirma e avisa pelo WhatsApp |
-| nome | sim | é como o barbeiro chama o cliente |
+| nome | sim | é como o barbeiro chama o cliente — e o que aparece na agenda dele |
+| idade | sim, **no primeiro acesso** (`/perfil`) | ficha do cliente; a loja acerta o serviço e o papo |
 | senha | **não** | atalho opcional para quem não quer esperar o e-mail |
 
-Conta criada pela loja (balcão) pode nascer só com telefone + PIN, sem e-mail.
+Conta criada pela loja (balcão) pode nascer só com telefone + PIN, sem e-mail. Nome e idade
+são pedidos logo depois de entrar, na página `/perfil` (nome primeiro, idade depois) — antes
+disso a agenda nem abre. Cuidado: hoje a senha opcional só existe na API (`POST /api/auth/senha`);
+falta o campo na interface (registrado no backlog).
 
 ## Arquivos
 
@@ -134,15 +138,19 @@ Conta criada pela loja (balcão) pode nascer só com telefone + PIN, sem e-mail.
 server/auth.py           PIN/senha (pbkdf2), código de e-mail, sessões, rate limit, papéis
 server/email_provider.py envio em 3 modos + template da marca (arquivo/smtp/resend/brevo)
 server/google_auth.py    OAuth do Google + provedor de teste
-server/main.py           rotas /api/auth/*
-docs/schema.sql          usuarios v3 (senha opcional, e-mail verificado) + codigos_email
-web/entrar.html          entrar: e-mail+código (principal), Google, senha, telefone+PIN
-web/conta.html           área logada: identidade, telefone, agendamentos, senha opcional
-web/auth.js / conta.js   sessão no navegador e os formulários
+server/main.py           rotas /api/auth/*, /api/account, /api/bookings e as páginas /login, /perfil, /account
+docs/schema.sql          usuarios v4 (senha opcional, e-mail verificado, idade) + codigos_email
+web/entrar.html          /login — entrar: e-mail+código (principal), Google, senha, telefone+PIN
+web/perfil.html          /perfil — primeiro acesso: nome, depois idade, depois a agenda
+web/conta.html           /account — agenda do cliente (o nome vem do perfil, nunca do HTML)
+web/auth.js / perfil.js / conta.js   sessão no navegador (Bearer em sessionStorage) e os formulários
 tests/test_email_codigo.py  fluxo do código, limites, expiração, senha opcional
 tests/test_auth.py          PIN, telefone, lockout, sessão, papéis
+tests/test_bearer.py        Bearer: 401 sem token, revogação, expiração, conta desativada, perfil
 tests/test_google.py        fluxo OAuth completo (com provedor de teste)
 tests/test_migracao.py      migração v1 → v3 sem perder dados
-scripts/testa_email_login.py  E2E do login por código (21 verificações)
-scripts/testa_login.py        E2E de telefone+PIN e Google (19 verificações)
+scripts/testa_bearer.py      API ao vivo em 8100, 34 verificações (token, perfil, reserva, revogação)
+scripts/testa_email_login.py E2E do login por código — servidor descartável na 8123 em modo arquivo
+scripts/testa_login.py       E2E de telefone+PIN e Google, guarda do /perfil, revogação
+scripts/testa_perfil.py      E2E do primeiro acesso (nome → idade → agenda) + reserva, com prints
 ```

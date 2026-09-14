@@ -164,6 +164,24 @@ def test_logout_revoga_de_verdade(cliente):
     assert cliente.get("/api/auth/me", headers=cabecalho).status_code == 401
 
 
+def test_area_do_cliente_exige_bearer_e_perfil_fica_personalizado(cliente):
+    token = criar(cliente, telefone="13997630070", nome="Nome Antigo").json()["token"]
+    cabecalho = {"Authorization": "Bearer " + token}
+
+    assert cliente.get("/api/account").status_code == 401
+    salvo = cliente.patch("/api/account/profile", headers=cabecalho,
+                          json={"nome": "Marina Souza", "idade": 27})
+    assert salvo.status_code == 200, salvo.text
+    assert salvo.json()["usuario"]["nome"] == "Marina Souza"
+    assert salvo.json()["usuario"]["idade"] == 27
+
+    conta = cliente.get("/api/account", headers=cabecalho)
+    assert conta.status_code == 200
+    assert conta.json()["usuario"]["nome"] == "Marina Souza"
+    assert conta.json()["usuario"]["idade"] == 27
+    assert conta.json()["agendamentos"] == []
+
+
 def test_token_expirado(cliente, monkeypatch):
     token = criar(cliente, telefone="13997630008").json()["token"]
     monkeypatch.setattr(auth, "TTL_MIN", 0)

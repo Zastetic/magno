@@ -87,12 +87,43 @@ def test_spa_servida_na_mesma_origem():
 
 
 def test_home_tem_o_conteudo_da_loja():
-    """A home é o layout institucional: marca, serviços com preço e horários."""
+    """A home é institucional: marca, serviços/preços e chamada para login."""
     with TestClient(app) as cliente:
         html = cliente.get("/").text
     for esperado in ("Barbearia Magnum", "Magnum", "Corte masculino", "R$ 45",
-                     "Barba na navalha", "Degradê navalhado", "09:00 — 19:00", "Domingo"):
+                     "Barba na navalha", "Degradê navalhado", "Seu horário começa aqui.", 'href="/login"'):
         assert esperado in html, f"faltando na home: {esperado}"
     assert "iframe" not in html.lower()
     # script inline é bloqueado pela CSP (script-src 'self') — a home não pode ter nenhum
     assert "<script>" not in html, "home com <script> inline seria bloqueada pela CSP"
+
+
+def test_area_da_conta_nao_tem_usuario_fixo_e_permite_troca():
+    """A agenda é do usuário do Bearer: nome, idade e telefone nunca vêm do HTML."""
+    with TestClient(app) as cliente:
+        html = cliente.get("/account").text
+        auth_js = cliente.get("/auth.js").text
+        account_js = cliente.get("/conta.js").text
+    assert "Matheus Oliveira" not in html
+    assert 'id="switchAccount"' in html
+    assert 'id="bookingName">—<' in html, "o nome na agenda tem que vir do perfil, não do HTML"
+    assert "profileForm" not in html, "as perguntas de perfil saíram daqui: agora são a página /perfil"
+    assert "A tela de login continua disponível mesmo com uma sessão aberta." in auth_js
+    assert "!auth || !auth.lerSessao()" in account_js, "sem Bearer a agenda não pode mostrar nada"
+    assert "!result.usuario.perfil_completo" in account_js, "perfil incompleto precisa cair em /perfil"
+
+
+def test_pagina_de_perfil_pergunta_nome_e_depois_idade():
+    """/perfil é o primeiro acesso: passo 1 nome, passo 2 idade, e segue para os agendamentos."""
+    with TestClient(app) as cliente:
+        r = cliente.get("/perfil")
+        pagina = r.text
+        js = cliente.get("/perfil.js").text
+    assert r.status_code == 200
+    assert r.headers["cache-control"] == "no-store"
+    assert "Como você quer ser chamado?" in pagina
+    assert 'id="formNome"' in pagina and 'id="formIdade" hidden' in pagina, "a idade só aparece depois do nome"
+    assert 'for="nome"' in pagina and 'for="idade"' in pagina
+    assert "/api/account/profile" in js          # salva os dois de uma vez
+    assert "location.replace('/account')" in js  # e prossegue para os agendamentos
+    assert "lerSessao()" in js                   # nada de HTML com dado pessoal

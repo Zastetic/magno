@@ -30,6 +30,22 @@
     try { sessionStorage.removeItem(CHAVE); } catch (e) { /* ignora */ }
   }
 
+  function destinoSeguro() {
+    var destino = new URLSearchParams(location.search).get("next");
+    var permitidos = ["/account", "/perfil"];
+    return permitidos.indexOf(destino) >= 0 ? destino : "/account";
+  }
+
+  function encerrarSessao() {
+    var token = lerSessao();
+    // Logout é revogação no servidor; a limpeza local acontece mesmo sem rede.
+    if (!token) { sair(); return Promise.resolve(); }
+    return fetch("/api/auth/logout", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
+    }).catch(function () { /* offline: o token local ainda é removido */ }).then(function () { sair(); });
+  }
+
   function pedir(caminho, opcoes) {
     var cfg = opcoes || {};
     cfg.headers = Object.assign({ "Content-Type": "application/json" }, cfg.headers || {});
@@ -46,21 +62,26 @@
     });
   }
 
-  window.MagnoAuth = { pedir: pedir, guardarSessao: guardarSessao, lerSessao: lerSessao, sair: sair };
+  window.MagnoAuth = { pedir: pedir, guardarSessao: guardarSessao, lerSessao: lerSessao, sair: sair, encerrarSessao: encerrarSessao };
 
-  // ---------------------------------------------------- token vindo do Google
+  function concluirLogin(token) {
+    guardarSessao(token);
+    location.replace(destinoSeguro());
+  }
   // o callback redireciona com #entrar=<token> — guarda e limpa a URL na hora
   if (location.hash.indexOf("entrar=") >= 0) {
     var valor = location.hash.split("entrar=")[1].split("&")[0];
     if (valor) {
       guardarSessao(decodeURIComponent(valor));
       history.replaceState(null, "", location.pathname + location.search);
-      location.replace("conta.html");
+      concluirLogin(decodeURIComponent(valor));
       return;
     }
   }
 
   var erro = new URLSearchParams(location.search).get("erro");
+  var notice = new URLSearchParams(location.search).get("notice");
+  if (notice === "logout") mostrar("Você saiu da sua conta.", "ok");
   if (erro) {
     var mensagens = {
       google_cancelado: "Você cancelou a entrada com o Google.",
@@ -124,8 +145,7 @@
         body: JSON.stringify({ email: emailEmUso, codigo: document.getElementById("codigo").value }),
       })
         .then(function (r) {
-          guardarSessao(r.token);
-          location.href = "conta.html";
+          concluirLogin(r.token);
         })
         .catch(function (e) { mostrar(e.message, "erro"); })
         .finally(function () { botao.disabled = false; });
@@ -187,8 +207,7 @@
         }),
       })
         .then(function (r) {
-          guardarSessao(r.token);
-          location.href = "conta.html";
+          concluirLogin(r.token);
         })
         .catch(function (e) { mostrar(e.message, "erro"); })
         .finally(function () { botao.disabled = false; });
@@ -209,8 +228,7 @@
         }),
       })
         .then(function (r) {
-          guardarSessao(r.token);
-          location.href = "conta.html";
+          concluirLogin(r.token);
         })
         .catch(function (e) { mostrar(e.message, "erro"); })
         .finally(function () { botao.disabled = false; });
@@ -220,6 +238,7 @@
   // ------------------------------------------------------- botão do Google
   var btnGoogle = document.getElementById("btnGoogle");
   if (btnGoogle) {
+    btnGoogle.href = "/api/auth/google/iniciar?destino=" + encodeURIComponent(destinoSeguro());
     fetch("/api/saude")
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -241,12 +260,6 @@
   var ano = document.getElementById("ano");
   if (ano) ano.textContent = String(new Date().getFullYear());
 
-  // Se já está logado, não faz sentido ficar na tela de entrar.
-  // IMPORTANTE: só na tela de entrar — este arquivo também carrega em conta.html, e
-  // redirecionar de dentro da própria conta gera loop de recarregamento.
-  if (formEmail && lerSessao()) {
-    pedir("/api/auth/me")
-      .then(function () { location.replace("conta.html"); })
-      .catch(function () { sair(); });
-  }
+  // A tela de login continua disponível mesmo com uma sessão aberta.
+  // Isso permite trocar de pessoa neste navegador; o próximo login substitui o Bearer.
 })();

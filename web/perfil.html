@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seu nome — Barbearia Magnum</title>
+<meta name="description" content="Diga seu nome e sua idade para a Barbearia Magnum: é o que a sua agenda usa para te reconhecer na próxima visita.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 30'%3E%3Crect x='2' y='2' width='14' height='26' rx='7' fill='none' stroke='%23c69347' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=perfil-1">
+</head>
+<body class="composicao-editorial account-loading">
+
+<header class="topo">
+  <div class="limite">
+    <a class="marca" href="./">
+      <svg class="poste" viewBox="0 0 18 30" aria-hidden="true">
+        <defs><clipPath id="posteClipePerfil"><rect x="2" y="2" width="14" height="26" rx="7"/></clipPath></defs>
+        <g clip-path="url(#posteClipePerfil)" stroke="var(--latao)" stroke-width="1.5" opacity=".85">
+          <line x1="-1" y1="12" x2="19" y2="4"/>
+          <line x1="-1" y1="20" x2="19" y2="12"/>
+          <line x1="-1" y1="28" x2="19" y2="20"/>
+        </g>
+        <rect x="2" y="2" width="14" height="26" rx="7" fill="none" stroke="var(--latao)" stroke-width="1.5"/>
+      </svg>
+      Magnum <small>Barbearia</small>
+    </a>
+    <nav class="nav" id="nav">
+      <a href="./">Início</a>
+      <a href="/account">Minha agenda</a>
+      <a href="/account" id="linkAgenda" hidden>Ir para os agendamentos</a>
+    </nav>
+  </div>
+</header>
+
+<main class="tela-auth">
+  <div class="limite">
+    <div class="auth-caixa" id="caixaPerfil" hidden>
+      <p class="kicker">Área do cliente</p>
+      <h1 id="tituloPerfil">Como você quer ser chamado?</h1>
+      <p class="linha-fina" id="subtituloPerfil">
+        É só o seu nome: com ele a barbearia sabe quem está chegando para o horário.
+      </p>
+
+      <ol class="passos-perfil" aria-label="Etapas do cadastro">
+        <li class="ativo" id="marcaPasso1"><b>01</b> Nome</li>
+        <li id="marcaPasso2"><b>02</b> Idade</li>
+      </ol>
+
+      <!-- ------------------------------------------------------ passo 1: nome -->
+      <form class="form-auth" id="formNome" novalidate>
+        <div class="campo">
+          <label for="nome">Seu nome</label>
+          <input id="nome" name="nome" autocomplete="name" maxlength="80" placeholder="Ex.: João da Silva">
+        </div>
+        <button class="btn btn-cheio btn-largo" type="submit">Continuar <span aria-hidden="true">→</span></button>
+      </form>
+
+      <!-- ----------------------------------------------------- passo 2: idade -->
+      <form class="form-auth" id="formIdade" hidden novalidate>
+        <p class="resumo-escolha">Prazer, <b id="nomeConfirmado">—</b>.</p>
+        <div class="campo">
+          <label for="idade">Sua idade</label>
+          <input id="idade" name="idade" type="number" inputmode="numeric" min="13" max="120" placeholder="Ex.: 24">
+        </div>
+        <button class="btn btn-cheio btn-largo" type="submit">Ir para os agendamentos <span aria-hidden="true">→</span></button>
+        <button class="btn btn-texto" id="btnVoltarNome" type="button">← mudar o nome</button>
+      </form>
+
+      <p class="aviso" id="aviso" hidden></p>
+
+      <p class="dica" id="dicaPerfil">
+        Nome e idade ficam só na sua conta. O nome aparece na sua agenda e a idade ajuda a
+        barbearia a sugerir o serviço certo.
+      </p>
+    </div>
+  </div>
+</main>
+
+<footer class="rodape">
+  <div class="limite">
+    <p>© <span id="ano">2026</span> Barbearia Magnum</p>
+    <nav><a href="status.html">Status do sistema</a></nav>
+  </div>
+</footer>
+
+<script src="auth.js?v=perfil-1" defer></script>
+<script src="perfil.js?v=perfil-1" defer></script>
+</body>
+</html>

@@ -3,102 +3,74 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Minha conta — Barbearia Magnum</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 30'%3E%3Crect x='2' y='2' width='14' height='26' rx='7' fill='none' stroke='%23c69347' stroke-width='1.6'/%3E%3C/svg%3E">
+<title>Minha agenda — Barbearia Magnum</title>
+<meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=perfil-1">
 </head>
-<body class="composicao-editorial">
+<body class="composicao-editorial account-loading">
+<header class="topo"><div class="limite">
+  <a class="marca" href="./">Magnum <small>Barbearia</small></a>
+  <nav class="nav"><a href="./">Início</a><a class="ativo" href="/account">Minha agenda</a><a class="account-switch" id="editProfile" href="/perfil">Meu perfil</a><button class="account-switch" id="switchAccount" type="button">Trocar conta</button><button class="account-switch" id="logoutButton" type="button">Sair</button></nav>
+</div></header>
 
-<header class="topo">
+<main class="client-page" id="accountContent" hidden>
   <div class="limite">
-    <a class="marca" href="./">
-      <svg class="poste" viewBox="0 0 18 30" aria-hidden="true">
-        <defs><clipPath id="posteClipeC"><rect x="2" y="2" width="14" height="26" rx="7"/></clipPath></defs>
-        <g clip-path="url(#posteClipeC)" stroke="var(--latao)" stroke-width="1.5" opacity=".85">
-          <line x1="-1" y1="12" x2="19" y2="4"/>
-          <line x1="-1" y1="20" x2="19" y2="12"/>
-          <line x1="-1" y1="28" x2="19" y2="20"/>
-        </g>
-        <rect x="2" y="2" width="14" height="26" rx="7" fill="none" stroke="var(--latao)" stroke-width="1.5"/>
-      </svg>
-      Magnum <small>Barbearia</small>
-    </a>
-    <nav class="nav" id="nav">
-      <a href="./">Agendar um horário</a>
-    </nav>
-  </div>
-</header>
+    <section class="client-intro">
+      <div><p class="kicker">Minha agenda</p><h1>Fala, <em id="clientName">—</em>.</h1><p id="clientSubtext">Sua agenda, do seu jeito.</p></div>
+      <div class="client-avatar" id="clientAvatar" aria-label="Sua conta">—</div>
+    </section>
 
-<main class="painel-conta">
-  <div class="limite">
-    <div class="cartao-conta" id="cartao" hidden>
-      <div class="identidade">
-        <div class="avatar" id="avatar">M</div>
-        <div>
-          <h1 id="nomeUsuario">—</h1>
-          <p id="detalheUsuario"></p>
+    <section class="booking-layout" aria-label="Novo agendamento" id="bookingArea">
+      <form class="booking-card" id="bookingForm">
+        <div class="booking-heading"><span class="booking-step">01</span><div><p class="rotulo">Novo horário</p><h2>Vamos marcar.</h2></div></div>
+        <div class="booking-identity">
+          <div>
+            <p class="rotulo">Agendando como</p>
+            <b id="bookingName">—</b>
+            <small id="bookingMeta"></small>
+          </div>
+          <a class="btn btn-texto" href="/perfil">Editar perfil</a>
         </div>
-      </div>
-
-      <p class="aviso" id="aviso" hidden></p>
-
-      <!-- conta do Google sem telefone: a barbearia precisa do número -->
-      <form id="formTelefone" hidden novalidate>
-        <p class="rotulo">Falta seu telefone</p>
-        <p class="resumo-escolha">
-          Sua conta ainda não tem telefone. A barbearia usa o número para confirmar o
-          atendimento e avisar se algo mudar.
-        </p>
-        <div class="campo">
-          <label for="telefone">Telefone com DDD</label>
-          <input id="telefone" inputmode="tel" autocomplete="tel" placeholder="(13) 99763-0784">
+        <div class="campo"><label for="phone">Telefone (a barbearia confirma por aqui)</label><input id="phone" inputmode="tel" autocomplete="tel" required placeholder="(13) 99763-0784"></div>
+        <div class="booking-divider"></div>
+        <p class="rotulo">Qual serviço?</p>
+        <div class="service-options" id="serviceOptions">
+          <button type="button" class="service-option selected" data-service="Corte masculino" data-price="R$ 45" data-duration="30 min"><b>Corte masculino</b><span>30 min · R$ 45</span></button>
+          <button type="button" class="service-option" data-service="Corte + barba" data-price="R$ 70" data-duration="1 h"><b>Corte + barba</b><span>1 h · R$ 70</span></button>
+          <button type="button" class="service-option" data-service="Barba" data-price="R$ 35" data-duration="30 min"><b>Barba na navalha</b><span>30 min · R$ 35</span></button>
         </div>
-        <button class="btn btn-cheio btn-largo" type="submit">Salvar telefone</button>
+        <div class="booking-divider"></div>
+        <p class="rotulo">Preferência de barbeiro</p>
+        <div class="barber-options" id="barberOptions">
+          <button type="button" class="barber-option selected" data-barber="Rafael"><i>R</i><span><b>Rafael</b><small>Degradê e navalha</small></span></button>
+          <button type="button" class="barber-option" data-barber="Bruno"><i>B</i><span><b>Bruno</b><small>Clássico na tesoura</small></span></button>
+        </div>
       </form>
 
-      <p class="rotulo">Meus agendamentos</p>
-      <div class="bloco-vazio" id="semAgendamentos">
-        Nenhum agendamento ainda.<br>
-        <a href="./#contato" class="btn btn-texto">Marcar um horário</a>
-      </div>
-
-      <hr>
-
-      <form id="formSenha" novalidate>
-        <p class="rotulo" id="rotuloSenha">Senha (opcional)</p>
-        <p class="resumo-escolha">
-          Você entra com um código enviado por e-mail. Se quiser entrar sem esperar o
-          e-mail, crie uma senha — é opcional e você pode apagar quando quiser.
-        </p>
-        <div class="campo">
-          <label for="novaSenha">Senha</label>
-          <input id="novaSenha" type="password" autocomplete="new-password"
-                 placeholder="de 4 a 20 caracteres">
+      <aside class="schedule-card">
+        <div class="booking-heading"><span class="booking-step">02</span><div><p class="rotulo">Dia e horário</p><h2>Quando fica bom?</h2></div></div>
+        <div class="date-list" id="dateList" aria-label="Escolha o dia">
+          <button type="button" class="date-option" data-date="2026-09-16"><span>Ter</span><b>16</b><small>Set</small></button>
+          <button type="button" class="date-option selected" data-date="2026-09-17"><span>Qua</span><b>17</b><small>Set</small></button>
+          <button type="button" class="date-option" data-date="2026-09-18"><span>Qui</span><b>18</b><small>Set</small></button>
+          <button type="button" class="date-option" data-date="2026-09-19"><span>Sex</span><b>19</b><small>Set</small></button>
+          <button type="button" class="date-option" data-date="2026-09-20"><span>Sáb</span><b>20</b><small>Set</small></button>
         </div>
-        <button class="btn btn-vazado btn-largo" type="submit" id="btnSalvarSenha">Salvar senha</button>
-      </form>
+        <p class="rotulo hours-label">Horários livres · quarta, 17</p>
+        <div class="time-options" id="timeOptions"><button type="button">09:30</button><button type="button">10:30</button><button type="button" class="selected">14:00</button><button type="button">15:30</button><button type="button">17:00</button><button type="button">18:00</button></div>
+        <div class="booking-summary" id="bookingSummary"><span>Corte masculino · Rafael</span><b>Qua, 17 às 14:00</b><small>30 min · R$ 45</small></div>
+        <button class="btn btn-cheio confirm-booking" type="submit" form="bookingForm">Confirmar horário <span aria-hidden="true">→</span></button>
+        <p class="booking-feedback" id="bookingFeedback" aria-live="polite"></p>
+      </aside>
+    </section>
 
-      <hr>
-      <button class="btn btn-vazado" id="btnSair" type="button">Sair da conta</button>
-    </div>
-
-    <div class="cartao-conta" id="carregando">
-      <p class="rotulo">Minha conta</p>
-      <p class="linha-fina">Carregando…</p>
-    </div>
+    <section class="upcoming-booking"><div><p class="rotulo">Próximo horário</p><h2 id="upcomingTitle">Nada marcado ainda.</h2><p id="upcomingText">Quando confirmar, seu agendamento aparece aqui e você consegue remarcar com calma.</p></div><span id="upcomingSymbol">—</span></section>
   </div>
 </main>
-
-<footer class="rodape">
-  <div class="limite">
-    <p>© <span id="ano">2026</span> Barbearia Magnum</p>
-  </div>
-</footer>
-
-<script src="auth.js" defer></script>
-<script src="conta.js" defer></script>
-</body>
-</html>
+<footer class="rodape"><div class="limite"><p>© <span id="year">2026</span> Barbearia Magnum · Santos / SP</p><nav><a href="/perfil">Meu perfil</a><a href="status.html">Status do sistema</a></nav></div></footer>
+<script src="auth.js?v=perfil-1" defer></script>
+<script src="conta.js?v=perfil-1" defer></script>
+</body></html>

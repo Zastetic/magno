@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=booking-3">
 
 <!-- =====================================================================
      LAYOUT PARA APRESENTAÇÃO (F2 antecipada) — dados de exemplo.
@@ -42,12 +42,10 @@
     </a>
     <nav class="nav" id="nav">
       <a href="#servicos">Serviços</a>
-      <a href="#equipe">Quem corta</a>
-      <a href="#como">Como funciona</a>
-      <a href="#contato">Agendar</a>
-      <a href="entrar.html" id="linkConta">Entrar</a>
+      <a href="#agendar">Agendar</a>
+      <a href="/login" id="linkConta">Entrar</a>
     </nav>
-    <a class="btn btn-vazado" href="#contato">Agendar</a>
+    <a class="btn btn-vazado" href="/login">Agendar</a>
     <button class="menu-botao" id="menuBotao" aria-label="Abrir menu" aria-expanded="false" aria-controls="nav">
       <span></span><span></span><span></span>
     </button>
@@ -67,7 +65,7 @@
           do seu atendimento — sem fila e sem espera no balcão.
         </p>
         <div class="acoes">
-          <a class="btn btn-cheio" href="#contato">Agendar horário</a>
+          <a class="btn btn-cheio" href="/login">Agendar horário</a>
           <a class="btn btn-texto" href="#servicos">Ver serviços e preços</a>
         </div>
 
@@ -78,58 +76,6 @@
         </dl>
       </div>
 
-      <div class="trilho" aria-hidden="true"></div>
-
-      <aside class="cartao-hoje">
-        <div class="cartao-topo">
-          <div>
-            <p class="rotulo">Hoje na cadeira</p>
-            <p class="relogio"><span id="relogio">--:--</span> <small>horário da loja</small></p>
-          </div>
-          <svg class="ponteiro" viewBox="0 0 48 48" aria-hidden="true">
-            <circle cx="24" cy="24" r="21" fill="none" stroke="var(--linha-forte)" stroke-width="1"/>
-            <circle cx="24" cy="24" r="15.5" fill="none" stroke="var(--linha)" stroke-width="1" stroke-dasharray="1 5"/>
-            <line class="agulha" x1="24" y1="24" x2="24" y2="6.5" stroke="var(--latao)" stroke-width="1.4" stroke-linecap="round"/>
-            <circle cx="24" cy="24" r="1.7" fill="var(--latao)"/>
-          </svg>
-        </div>
-        <p class="hora-grande" id="horaHoje">09:00 — 19:00</p>
-        <p class="selo-status" id="seloStatus"><i></i><span>carregando…</span></p>
-        <hr>
-        <p class="rotulo" data-alvo="vagas">Horários livres hoje</p>
-        <ul class="lista-vagas" id="vagasHoje" data-rotulo="Horários livres">
-          <li>14:30</li>
-          <li>15:00</li>
-          <li>16:30</li>
-          <li>17:00</li>
-        </ul>
-        <div class="pe">
-          <span>Calculado agora pela agenda</span>
-          <a href="#contato">Agendar →</a>
-        </div>
-      </aside>
-    </div>
-  </section>
-
-  <!-- ------------------------------------------------- letreiro (movimento) -->
-  <section class="letreiro" aria-label="Serviços da casa">
-    <div class="letreiro-faixa">
-      <span>Corte</span><span>Barba na navalha</span><span>Degradê</span><span>Sobrancelha</span>
-      <span>Corte infantil</span><span>Platinado</span><span>Hora marcada</span><span>Sem fila</span>
-      <span>Corte</span><span>Barba na navalha</span><span>Degradê</span><span>Sobrancelha</span>
-      <span>Corte infantil</span><span>Platinado</span><span>Hora marcada</span><span>Sem fila</span>
-    </div>
-  </section>
-
-  <!-- -------------------------------------------------------- funcionamento -->
-  <section class="faixa">
-    <div class="limite">
-      <ul>
-        <li data-dias="1,2,3,4"><dt>Segunda a quinta</dt><dd>09:00 — 19:00</dd></li>
-        <li data-dias="5"><dt>Sexta</dt><dd>09:00 — 20:00</dd></li>
-        <li data-dias="6"><dt>Sábado</dt><dd>08:00 — 18:00</dd></li>
-        <li data-dias="0" class="fechado"><dt>Domingo</dt><dd>Fechado</dd></li>
-      </ul>
     </div>
   </section>
 
@@ -143,37 +89,37 @@
       </div>
 
       <ul class="menu-servicos">
-        <li><a href="#contato" data-servico="Corte masculino" data-min="30" data-preco="R$ 45" data-prof="rafael bruno">
+        <li><a href="/login">
           <span class="nome">Corte masculino</span><span class="guia"></span>
           <span class="dur">30 min</span><span class="preco">R$ 45</span>
           <span class="desc">Tesoura ou máquina, acabamento na navalha e pomada no fim.</span>
         </a></li>
-        <li><a href="#contato" data-servico="Barba na navalha" data-min="30" data-preco="R$ 35" data-prof="rafael diego">
+        <li><a href="/login">
           <span class="nome">Barba na navalha</span><span class="guia"></span>
           <span class="dur">30 min</span><span class="preco">R$ 35</span>
           <span class="desc">Toalha quente, óleo e o fio no sentido do pelo.</span>
         </a></li>
-        <li><a href="#contato" data-servico="Corte + barba" data-min="60" data-preco="R$ 70" data-prof="rafael diego">
+        <li><a href="/login">
           <span class="nome">Corte + barba</span><span class="guia"></span>
           <span class="dur">1 h</span><span class="preco">R$ 70</span>
           <span class="desc">O combo de sempre, com tempo para fazer os dois com calma.</span>
         </a></li>
-        <li><a href="#contato" data-servico="Degradê navalhado" data-min="45" data-preco="R$ 55" data-prof="rafael">
+        <li><a href="/login">
           <span class="nome">Degradê navalhado</span><span class="guia"></span>
           <span class="dur">45 min</span><span class="preco">R$ 55</span>
           <span class="desc">Fade fechado, sem marca de máquina aparente.</span>
         </a></li>
-        <li><a href="#contato" data-servico="Sobrancelha na navalha" data-min="15" data-preco="R$ 20" data-prof="bruno diego">
+        <li><a href="/login">
           <span class="nome">Sobrancelha na navalha</span><span class="guia"></span>
           <span class="dur">15 min</span><span class="preco">R$ 20</span>
           <span class="desc">Só o desenho, sem afinar demais.</span>
         </a></li>
-        <li><a href="#contato" data-servico="Corte infantil" data-min="30" data-preco="R$ 40" data-prof="bruno">
+        <li><a href="/login">
           <span class="nome">Corte infantil</span><span class="guia"></span>
           <span class="dur">30 min</span><span class="preco">R$ 40</span>
           <span class="desc">Até 10 anos, com banquinho e paciência.</span>
         </a></li>
-        <li><a href="#contato" data-servico="Platinado" data-min="90" data-preco="R$ 180" data-prof="diego">
+        <li><a href="/login">
           <span class="nome">Platinado</span><span class="guia"></span>
           <span class="dur">1 h 30</span><span class="preco">R$ 180</span>
           <span class="desc">Descoloração e matização — precisa marcar com antecedência.</span>
@@ -187,145 +133,12 @@
     </div>
   </section>
 
-  <!-- ------------------------------------------------------------ equipe -->
-  <section class="secao" id="equipe">
+  <section class="secao cta-agendar" id="agendar">
     <div class="limite">
-      <div class="cabeca-secao">
-        <h2>Quem corta</h2>
-        <div class="regua"></div>
-        <span>Cada um com sua agenda</span>
-      </div>
-
-      <div class="grade-equipe">
-        <article class="barbeiro">
-          <div class="monograma" aria-hidden="true">R</div>
-          <h3>Rafael</h3>
-          <p class="funcao">Degradê e navalha</p>
-          <p>Na casa desde 2019. Gosta de fade fechado e barba desenhada.</p>
-          <div class="tags"><span>corte</span><span>degradê</span><span>barba</span></div>
-        </article>
-        <article class="barbeiro">
-          <div class="monograma" aria-hidden="true">B</div>
-          <h3>Bruno</h3>
-          <p class="funcao">Clássico na tesoura</p>
-          <p>Corte social, infantil e sobrancelha. O mais rápido da casa.</p>
-          <div class="tags"><span>corte</span><span>infantil</span><span>sobrancelha</span></div>
-        </article>
-        <article class="barbeiro">
-          <div class="monograma" aria-hidden="true">D</div>
-          <h3>Diego</h3>
-          <p class="funcao">Barba e desenho</p>
-          <p>Barba na navalha e risco no desenho. Chega cedo nos sábados.</p>
-          <div class="tags"><span>barba</span><span>sobrancelha</span><span>platinado</span></div>
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <!-- ------------------------------------------------------ como funciona -->
-  <section class="secao curta" id="como">
-    <div class="limite">
-      <div class="cabeca-secao">
-        <h2>Como funciona</h2>
-        <div class="regua"></div>
-        <span>Trinta segundos no celular</span>
-      </div>
-
-      <div class="passos">
-        <div class="passo" id="passo-1">
-          <span class="num">01</span>
-          <h3>Escolha o serviço</h3>
-          <p>Cada serviço já mostra o tempo que ocupa na cadeira — e o preço que você vai pagar.</p>
-        </div>
-        <div class="passo" id="passo-2">
-          <span class="num">02</span>
-          <h3>Escolha o barbeiro e o horário</h3>
-          <p>Só aparecem os horários que estão realmente livres. O que está ocupado não é oferecido.</p>
-        </div>
-        <div class="passo" id="passo-3">
-          <span class="num">03</span>
-          <h3>Confirme com seu telefone</h3>
-          <p>Nome, telefone e um PIN de quatro dígitos. Depois é só chegar na hora marcada.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- -------------------------------------------------- agendar (ao vivo) -->
-  <section class="secao" id="contato">
-    <div class="limite contato-grade">
-      <div>
-        <div class="cabeca-secao">
-          <h2>Onde fica</h2>
-          <div class="regua"></div>
-        </div>
-        <ul class="dados">
-          <li><span class="campo">Endereço</span><span>Rua Exemplo, 123 — Centro<br>Santos / SP</span></li>
-          <li><span class="campo">WhatsApp</span><span>(13) 90000-0000</span></li>
-          <li><span class="campo">Instagram</span><span>@barbeariamagnum</span></li>
-          <li><span class="campo">Funcionamento</span><span>Seg a sáb — veja os horários acima</span></li>
-        </ul>
-        <p class="nota">
-          Cancelamento e remarcação pelo próprio site até 2 horas antes do atendimento.
-        </p>
-      </div>
-
-      <div class="quadro-agendar" id="quadro" data-estado="escolha">
-
-        <!-- estado 1: escolher serviço, barbeiro e horário -->
-        <div id="passo-escolha">
-          <p class="rotulo">Agendamento · passo 2 de 3</p>
-          <h3>Escolha o barbeiro e o horário</h3>
-          <p class="resumo-servico fraco" id="resumoServico">
-            Nenhum serviço escolhido ainda — toque em um serviço na lista acima.
-          </p>
-          <p class="rotulo">Barbeiro</p>
-          <div class="chips" id="chipsProf"></div>
-          <p class="rotulo">Horários de hoje</p>
-          <div class="chips" id="chipsHora"></div>
-          <p class="aviso" id="avisoVazio" hidden></p>
-          <button class="btn btn-cheio btn-largo" id="btnContinuar" disabled>Escolha um serviço</button>
-        </div>
-
-        <!-- estado 2: confirmar dados -->
-        <div id="passo-confirmar" hidden>
-          <p class="rotulo">Agendamento · passo 3 de 3</p>
-          <h3>Confirme seus dados</h3>
-          <p class="resumo-escolha" id="resumoEscolha"></p>
-          <div class="campo">
-            <label for="campoNome">Nome</label>
-            <input id="campoNome" name="nome" autocomplete="name" placeholder="Como devemos te chamar">
-          </div>
-          <div class="campo">
-            <label for="campoTelefone">Telefone com DDD</label>
-            <input id="campoTelefone" name="telefone" inputmode="tel" autocomplete="tel" placeholder="(13) 90000-0000">
-          </div>
-          <div class="campo">
-            <label for="campoPin">PIN de 4 dígitos</label>
-            <input id="campoPin" name="pin" inputmode="numeric" maxlength="6" placeholder="••••"
-                   aria-describedby="dicaPin">
-            <small id="dicaPin">O PIN é a sua senha para ver, remarcar ou cancelar o agendamento.</small>
-          </div>
-          <label class="consentimento">
-            <input type="checkbox" id="campoConsentimento">
-            <span>Aceito os termos e a política de privacidade.</span>
-          </label>
-          <button class="btn btn-cheio btn-largo" id="btnConfirmar">Confirmar agendamento</button>
-          <button class="btn btn-texto" id="btnVoltar">← voltar e mudar o horário</button>
-        </div>
-
-        <!-- estado 3: reservado -->
-        <div id="passo-pronto" hidden>
-          <p class="rotulo">Agendamento na agenda</p>
-          <h3>Horário reservado</h3>
-          <p class="resumo-escolha" id="textoPronto"></p>
-          <a class="btn btn-cheio btn-largo" id="linkWhats" href="#contato" target="_blank" rel="noopener">
-            Falar no WhatsApp
-          </a>
-          <button class="btn btn-texto" id="btnOutro">Fazer outro agendamento</button>
-        </div>
-
-      </div>
+      <p class="kicker">Pronto quando você estiver</p>
+      <h2>Seu horário começa aqui.</h2>
+      <p>Entre ou crie sua conta para escolher o barbeiro, o dia e o melhor horário.</p>
+      <a class="btn btn-cheio btn-booking" href="/login">Agendar agora <span aria-hidden="true">→</span></a>
     </div>
   </section>
 

@@ -8,13 +8,15 @@ import html
 import os
 import secrets
 import sqlite3
+from urllib.parse import quote
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -26,6 +28,18 @@ WEB = RAIZ / "web"
 VERSAO = "0.2.0-f1"
 LIMITE_CORPO_BYTES = 1_000_000
 MINUTOS_STATE = 10
+# Únicos destinos internos que aceitamos depois do login (evita open redirect no OAuth).
+DESTINOS_LOGIN = ("/account", "/perfil")
+
+# --- Novos tipos para o agendamento
+class BookingRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+    phone: str = Field(min_length=8, max_length=20)
+    service: str = Field(min_length=1, max_length=100)
+    barber: str = Field(min_length=1, max_length=100)
+    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    time: str = Field(pattern=r"^\d{2}:\d{2}$")
+
 
 CSP = (
     "default-src 'self'; script-src 'self'; "
@@ -144,6 +158,11 @@ class CorpoTelefone(BaseModel):
     telefone: str
 
 
+class CorpoPerfil(BaseModel):
+    nome: str = Field(min_length=2, max_length=80)
+    idade: int = Field(ge=13, le=120)
+
+
 def _ip(request: Request) -> str | None:
     return request.client.host if request.client else None
 
@@ -228,9 +247,44 @@ def sair(request: Request, usuario: dict = Depends(auth.usuario_atual)):
     return {"ok": True}
 
 
+@app.post("/api/auth/logout-all")
+def sair_de_todos(usuario: dict = Depends(auth.usuario_atual)):
+    """Medida de recuperação: invalida todas as sessões da conta, inclusive esta."""
+    auth.revogar_todas(int(usuario["id"]))
+    db.registrar_evento("logout.todos", usuario["id"])
+    return {"ok": True}
+
+
 @app.get("/api/auth/me")
 def eu(usuario: dict = Depends(auth.usuario_atual)):
     return {"usuario": auth.publico(usuario)}
+
+
+@app.get("/api/account")
+def minha_conta(usuario: dict = Depends(auth.usuario_atual)):
+    """Dados pessoais e agenda: nunca saem sem o Bearer da sessão."""
+    conta = auth.buscar_por_id(int(usuario["id"])) or usuario
+    agendamentos = db.listar_agendamentos_do_cliente(int(usuario["id"]))
+    return {"usuario": auth.publico(conta), "agendamentos": [dict(item) for item in agendamentos]}
+
+
+@app.patch("/api/account/profile")
+def atualizar_perfil(corpo: CorpoPerfil, usuario: dict = Depends(auth.usuario_atual)):
+    nome = corpo.nome.strip()
+    if len(nome) < 2:
+        raise HTTPException(400, {"erro": "Digite seu nome completo.", "codigo": "nome_invalido"})
+    con = db.conectar()
+    try:
+        con.execute("UPDATE usuarios SET nome = ?, idade = ?, atualizado_em = ? WHERE id = ?",
+                    (nome, corpo.idade, auth._agora_iso(), usuario["id"]))
+        con.commit()
+    finally:
+        con.close()
+    conta = auth.buscar_por_id(int(usuario["id"]))
+    if not conta:
+        raise HTTPException(404, {"erro": "Conta não encontrada.", "codigo": "nao_encontrada"})
+    db.registrar_evento("perfil.atualizado", usuario["id"])
+    return {"usuario": auth.publico(conta)}
 
 
 @app.patch("/api/auth/telefone")
@@ -383,7 +437,79 @@ def entrar_com_senha(corpo: CorpoEntrarSenha, request: Request):
     return {"token": token, "usuario": auth.publico(usuario)}
 
 
+
+# ================================================================ agendamentos
+@app.post("/api/bookings", status_code=201)
+def criar_booking(corpo: BookingRequest, usuario: dict = Depends(auth.usuario_atual)):
+    """Confirma um horário autenticado, impedindo conflito de agenda do profissional."""
+    telefone = auth.normalizar_telefone(corpo.phone)
+    if not telefone:
+        raise HTTPException(400, {"erro": "Telefone inválido. Use DDD + número.", "codigo": "telefone_invalido"})
+
+    try:
+        local = datetime.strptime(f"{corpo.date} {corpo.time}", "%Y-%m-%d %H:%M").replace(
+            tzinfo=ZoneInfo("America/Sao_Paulo")
+        )
+    except ValueError:
+        raise HTTPException(400, {"erro": "Data ou horário inválido.", "codigo": "horario_invalido"})
+    if local <= datetime.now(ZoneInfo("America/Sao_Paulo")):
+        raise HTTPException(400, {"erro": "Escolha um horário futuro.", "codigo": "horario_passado"})
+
+    servico = db.obter_servico_por_nome(corpo.service)
+    profissional = db.obter_profissional_por_apelido(corpo.barber)
+    if not servico or not profissional:
+        raise HTTPException(404, {"erro": "Serviço ou barbeiro não está disponível.", "codigo": "indisponivel"})
+
+    inicio = local.astimezone(timezone.utc)
+    fim = inicio + timedelta(minutes=int(servico["duracao_min"]))
+    inicio_iso = inicio.strftime("%Y-%m-%dT%H:%M:%SZ")
+    fim_iso = fim.strftime("%Y-%m-%dT%H:%M:%SZ")
+    con = db.conectar()
+    try:
+        habilitado = con.execute(
+            "SELECT 1 FROM servico_profissional WHERE servico_id = ? AND profissional_id = ?",
+            (servico["id"], profissional["id"]),
+        ).fetchone()
+        conflito = con.execute(
+            """SELECT 1 FROM agendamentos
+               WHERE profissional_id = ? AND status IN ('agendado','confirmado')
+                 AND inicio < ? AND fim > ? LIMIT 1""",
+            (profissional["id"], fim_iso, inicio_iso),
+        ).fetchone()
+        if not habilitado or conflito:
+            raise HTTPException(409, {"erro": "Esse horário acabou de ser ocupado. Escolha outro.", "codigo": "horario_ocupado"})
+        nome = corpo.name.strip()
+        con.execute(
+            "UPDATE usuarios SET nome = ?, telefone = COALESCE(telefone, ?), atualizado_em = ? WHERE id = ?",
+            (nome, telefone, datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), usuario["id"]),
+        )
+        con.commit()
+    except sqlite3.IntegrityError:
+        con.rollback()
+        raise HTTPException(409, {"erro": "Esse telefone já pertence a outra conta.", "codigo": "telefone_em_uso"})
+    finally:
+        con.close()
+
+    try:
+        agendamento = db.criar_agendamento(
+            int(usuario["id"]), int(profissional["id"]), int(servico["id"]), inicio, fim,
+            int(servico["duracao_min"]), int(servico["preco_centavos"]),
+        )
+    except sqlite3.IntegrityError:
+        raise HTTPException(409, {"erro": "Esse horário acabou de ser ocupado. Escolha outro.", "codigo": "horario_ocupado"})
+
+    db.registrar_evento("agendamento.criado", usuario["id"], agendamento["id"])
+    return {"agendamento": {"codigo": agendamento["codigo"], "inicio": agendamento["inicio"],
+                             "servico": servico["nome"], "barbeiro": profissional["apelido"],
+                             "duracao_min": servico["duracao_min"], "preco_centavos": servico["preco_centavos"]}}
+
+
 # ============================================================ login com Google
+def _destino_login_seguro(destino: str | None) -> str:
+    """Só permitimos destinos internos conhecidos; qualquer outra coisa cai na agenda."""
+    return destino if destino in DESTINOS_LOGIN else "/account"
+
+
 @app.get("/api/auth/google/iniciar")
 def google_iniciar(request: Request):
     if not google_auth.configurado():
@@ -398,8 +524,7 @@ def google_iniciar(request: Request):
         con.execute("INSERT INTO logins_pendentes (state, expira_em, destino, ip) VALUES (?, ?, ?, ?)",
                     (state,
                      (agora + timedelta(minutes=MINUTOS_STATE)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                     (request.query_params.get("destino") or "")[:300],
-                     _ip(request)))
+                     _destino_login_seguro(request.query_params.get("destino")), _ip(request)))
         con.commit()
     finally:
         con.close()
@@ -409,7 +534,7 @@ def google_iniciar(request: Request):
 @app.get("/api/auth/google/callback")
 def google_callback(request: Request, code: str = "", state: str = "", error: str = ""):
     if error or not code or not state:
-        return RedirectResponse("/entrar.html?erro=google_cancelado")
+        return RedirectResponse("/login?erro=google_cancelado")
 
     agora = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     con = db.conectar()
@@ -417,10 +542,10 @@ def google_callback(request: Request, code: str = "", state: str = "", error: st
         linha = con.execute("SELECT * FROM logins_pendentes WHERE state = ? AND expira_em > ?",
                             (state, agora)).fetchone()
         if not linha:
-            return RedirectResponse("/entrar.html?erro=state_invalido")
+            return RedirectResponse("/login?erro=state_invalido")
         con.execute("DELETE FROM logins_pendentes WHERE state = ?", (state,))  # uso único
         con.commit()
-        destino = linha["destino"] or "/conta.html"
+        destino = _destino_login_seguro(linha["destino"])
     finally:
         con.close()
 
@@ -428,10 +553,10 @@ def google_callback(request: Request, code: str = "", state: str = "", error: st
         tokens = google_auth.trocar_codigo(code, google_auth.redirect_uri(url_publica(request)))
         dados = google_auth.dados_do_usuario(tokens.get("access_token", ""))
     except Exception:
-        return RedirectResponse("/entrar.html?erro=google_falhou")
+        return RedirectResponse("/login?erro=google_falhou")
 
     if not dados.get("sub") or not dados.get("email"):
-        return RedirectResponse("/entrar.html?erro=google_sem_email")
+        return RedirectResponse("/login?erro=google_sem_email")
 
     usuario = auth.buscar_por_google(dados["sub"]) or auth.buscar_por_email(dados["email"])
     criado = False
@@ -460,12 +585,12 @@ def google_callback(request: Request, code: str = "", state: str = "", error: st
     finally:
         con.close()
     if not usuario_id:
-        return RedirectResponse("/entrar.html?erro=google_falhou")
+        return RedirectResponse("/login?erro=google_falhou")
 
     token = auth.criar_sessao(usuario_id, _ip(request), request.headers.get("user-agent"))
     db.registrar_evento("login.google", usuario_id, payload='{"criado": %s}' % ("true" if criado else "false"))
-    separador = "" if destino.startswith("/") else "/"
-    return RedirectResponse(f"{destino}{separador}#entrar={token}")
+    # Token só passa no fragmento (não vai para logs/Referer); login o transfere para sessionStorage.
+    return RedirectResponse(f"/login?next={quote(destino, safe='/')}#entrar={token}")
 
 
 @app.get("/api/auth/google/_fake", response_class=HTMLResponse)
@@ -500,9 +625,23 @@ def google_fake(request: Request, state: str = ""):
   <p class="linha-fina">Esta tela substitui o Google enquanto as credenciais reais não
   estão configuradas. O fluxo (state, callback, criação de conta, sessão) é o mesmo.</p>
   <ul class="lista-fake">{links}</ul>
-  <a class="btn btn-texto" href="/entrar.html">Voltar</a>
+  <a class="btn btn-texto" href="/login">Voltar</a>
 </main></body></html>"""
 
 
 if WEB.is_dir():
+    @app.get("/login", include_in_schema=False)
+    def login_page():
+        return FileResponse(WEB / "entrar.html")
+
+    @app.get("/account", include_in_schema=False)
+    def account_page():
+        # O HTML não tem dados pessoais; conta.js libera a interface após validar o Bearer.
+        return FileResponse(WEB / "conta.html", headers={"Cache-Control": "no-store"})
+
+    @app.get("/perfil", include_in_schema=False)
+    def perfil_page():
+        """Primeiro acesso: nome → idade → agenda. Só o Bearer libera os dados."""
+        return FileResponse(WEB / "perfil.html", headers={"Cache-Control": "no-store"})
+
     app.mount("/", StaticFiles(directory=str(WEB), html=True), name="web")

@@ -17,8 +17,12 @@ a loja vê e administra os próximos atendimentos em formato de agenda.
 | Login por **e-mail + código de 5 dígitos** (sem senha) | ✅ funcionando |
 | Login com **Google** | ✅ código pronto, rodando com provedor de teste |
 | **Telefone + PIN** (balcão) e senha opcional | ✅ |
-| Agenda (serviço/profissional/dia/horário) e painel da loja | ⏳ F2–F4 do backlog |
-| Envio real de e-mail e credenciais do Google | ⏳ esperando o provedor (`docs/06-LOGIN.md`) →
+| **Primeiro acesso** (`/perfil`): nome → idade → agenda | ✅ feito (D25) |
+| **Agenda do cliente** em `/account` com o nome de quem entrou | ✅ fluxo real; a grade de dias/horas ainda é fixa no HTML (ver backlog F4) |
+| **Bearer token** (sessões, revogação, expiração, conta desativada) | ✅ verificado: 140 testes + 34 checagens ao vivo + 24 no browser |
+| Painel da loja (barbeiro/admin) | ⏳ F5 do backlog |
+| Envio real de e-mail (Resend) | ✅ ligado; falta SPF/DKIM no DNS para não cair em spam |
+| Credenciais reais do Google | ⏳ esperando o Okai (`docs/06-LOGIN.md`) |
 
 ## Documentação (leia nesta ordem)
 
@@ -50,8 +54,18 @@ Variáveis (`.env.local`): `MAGNO_PORTA` (default 8100), `MAGNO_DB` (default
 ## Testes
 
 ```bash
-MAGNO_DB=/tmp/test-magno.db ./venv/bin/pytest tests/ -v   # suíte da aplicação (F1+)
-python3 scripts/valida_schema.py                          # valida o schema e as regras críticas
+MAGNO_DB=/tmp/test-magno.db ./venv/bin/pytest tests/ -v      # suíte da aplicação (140 testes)
+./venv/bin/python scripts/testa_bearer.py                    # API ao vivo em 8100 (34 checagens)
+./venv/bin/python scripts/valida_schema.py                   # valida o schema e as regras críticas
+```
+
+Testes de browser (precisam do python que tem Playwright instalado) — o servidor tem que estar no ar:
+
+```bash
+P=/home/vh450/.hermes/hermes-agent/venv/bin/python
+$P scripts/testa_perfil.py         # primeiro acesso: nome → idade → agenda + reserva (24 checagens, gera prints em docs/provas/)
+$P scripts/testa_login.py          # telefone+PIN, Google, guarda do /perfil e revogação (22)
+$P scripts/testa_email_login.py    # login por código: sobe um servidor descartável na 8123 em modo arquivo (18)
 ```
 
 Os testes usam banco descartável — o banco de desenvolvimento nunca é tocado.
@@ -61,19 +75,26 @@ duplicidade, corrida de duas threads e o cálculo de disponibilidade.
 ## Estrutura
 
 ```
-docs/    planejamento (plano, dados, API, decisões, backlog, schema)
-server/  main.py (rotas/middlewares), auth.py, db.py, agenda.py, relatorios.py
-web/     SPA: index.html, app.js, styles.css
+docs/    planejamento (plano, dados, API, decisões, backlog, schema) + provas/ (prints)
+server/  main.py (rotas + páginas), auth.py (sessões/Bearer, PIN, código, Google), db.py, email_provider.py, google_auth.py
+web/     entrar.html (/login), perfil.html (/perfil), conta.html (/account), index.html, styles.css
 tests/   suíte pytest (banco descartável)
-scripts/ run.sh, backup.sh
-data/    magno.db + backups (fora do git)
+scripts/ run.sh, testa_bearer.py, testa_perfil.py, testa_login.py, testa_email_login.py, valida_schema.py
+data/    backups do .db (o banco em uso fica no ext4, ver D21)
 ```
 
 ## Status
 
-**F0 fechada** e a **home institucional pronta** (`web/index.html`, com variante em
-`web/index-b.html`). Planejamento completo em `docs/`. Próximo passo do sistema: **F1**
-(login por telefone + PIN, token revogável, rate limit e papéis).
+**F0 e F1 fechadas.** Além do login (e-mail com código, Google, telefone + PIN), o cliente já
+tem **primeiro acesso** em `/perfil` (nome → idade → agenda, D25) e a **agenda em `/account`**
+mostrando o nome de quem entrou, com reserva real por `POST /api/bookings`. O Bearer foi
+verificado de ponta a ponta: suíte do servidor, checagens na API ao vivo e navegação no browser.
+Próximo passo do sistema: **F3** (motor de disponibilidade — a grade de dias/horas do cartão
+de agendamento ainda é fixa no HTML) e depois **F5** (painel da loja).
+
+Os dois barbeiros de exemplo (Rafael e Bruno) nascem com `MAGNO_SEED_DEV=1`, hoje ligado no
+ambiente do serviço (`~/.config/magno/magno.env`) só para a demonstração funcionar — em produção,
+cadastrar os barbeiros de verdade e remover essa linha.
 
 O deploy está a **um passo no painel Cloudflare**: Public Hostname `magnum.autoava.us` →
 `HTTP 127.0.0.1:8100`. Servidor e túnel já rodam como serviço (`docs/05-DEPLOY.md`).

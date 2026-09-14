@@ -383,6 +383,7 @@ def publico(usuario: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": usuario["id"],
         "nome": usuario["nome"],
+        "idade": usuario.get("idade"),
         "papel": usuario["papel"],
         "telefone": usuario.get("telefone"),
         "telefone_formatado": telefone_formatado(usuario.get("telefone")),
@@ -391,8 +392,10 @@ def publico(usuario: dict[str, Any]) -> dict[str, Any]:
         "foto_url": usuario.get("foto_url"),
         "tem_senha": bool(usuario.get("senha_hash")),
         "tem_google": bool(usuario.get("google_sub")),
-        # conta sem telefone: precisa completar antes de agendar (a loja confirma pelo número)
+        # Conta sem telefone: precisa completar antes de agendar (a loja confirma pelo número)
         "precisa_telefone": not bool(usuario.get("telefone")),
+        # Nome + idade são o mínimo para agendar — quem não tem ainda passa por /perfil
+        "perfil_completo": bool((usuario.get("nome") or "").strip()) and usuario.get("idade") is not None,
     }
 
 

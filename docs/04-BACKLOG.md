@@ -26,7 +26,7 @@ Porta 8100 · banco `data/magno.db` (testes usam `MAGNO_DB=/tmp/test-magno.db`).
 - [x] Rotas: `/api/auth/cadastro`, `/login`, `/logout`, `/me`, `/telefone` + normalização de telefone E.164
 - [x] **Login com Google** (`server/google_auth.py`): OAuth authorization code, `state` de uso único,
       vínculo por e-mail, provedor de teste local (`GOOGLE_FAKE`) — falta só colar as credenciais
-- [x] Telas `/entrar.html` e `/conta.html` no mesmo design; cabeçalho do site cumprimenta quem está logado
+- [x] Telas `/login` (`entrar.html`), `/perfil` e `/account` no mesmo design; o cabeçalho da área logada cumprimenta pelo nome (vindo do Bearer, nunca do HTML)
 - [x] Testes: 71 no servidor (auth, google, migração) + 28 verificações de browser
 - **Bugs reais achados pelos testes:** (1) o lockout nunca disparava — o contador era zerado a cada
   tentativa; (2) e-mail repetido estourava 500 em vez de 409; (3) o "já estou logado" rodava também
@@ -59,6 +59,17 @@ Porta 8100 · banco `data/magno.db` (testes usam `MAGNO_DB=/tmp/test-magno.db`).
 - **Pronto quando:** teste concorrente passa 20/20 vezes e nenhuma combinação gera horário duplicado.
 
 ## F4 — Área do cliente
+- [x] **Primeiro acesso** (`/perfil`): pergunta o nome e depois a idade antes de liberar a agenda — D25
+      (`PATCH /api/account/profile`; `perfil_completo` no `usuario`; `conta.js` guarda a rota)
+- [x] **Agenda do cliente** em `/account` com o nome de quem está logado + `POST /api/bookings` com Bearer
+      (409 em horário ocupado, 400 em horário passado)
+- [x] Verificação do Bearer de ponta a ponta: `tests/test_bearer.py` (suíte), `scripts/testa_bearer.py`
+      (34 checagens ao vivo em 8100), `scripts/testa_perfil.py` (24 no browser, com prints)
+- [ ] **Grade de horários de verdade**: hoje os dias e as horas do cartão de agendamento estão fixos
+      no HTML (`data-date` de 16 a 20/09/2026). Depois dessa data não dá mais para agendar — precisa
+      vir de `GET /api/publica/disponibilidade` (F3) antes de mostrar a página para cliente
+- [ ] Campo para criar/trocar a **senha opcional** na interface (a API `POST /api/auth/senha` existe,
+      mas a tela antiga de conta saiu na reescrita da agenda)
 - [ ] Fluxo de agendamento em 4 passos (serviço → profissional → dia → hora) + confirmação
 - [ ] `GET /api/meus-agendamentos` (futuros e histórico) + `GET/POST /api/agendamentos`
 - [ ] `PATCH /api/agendamentos/{id}` (remarcar) e `POST .../cancelar` com `cancelamento_limite_h`

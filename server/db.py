@@ -7,7 +7,9 @@ N vezes não recria nem duplica nada. Bancos antigos passam por `migrar()` antes
 from __future__ import annotations
 
 import os
+import secrets
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -35,10 +37,10 @@ DB_PATH = Path(
 )
 PRAZO_LOCK_S = 5.0
 
-# Colunas da tabela usuarios na forma atual (v3). Qualquer banco que não tenha todas, ou que
+# Colunas da tabela usuarios na forma atual (v4). Qualquer banco que não tenha todas, ou que
 # ainda exija telefone/senha, é reconstruído. Espelha docs/schema.sql — manter as duas juntas.
 COLUNAS_USUARIOS = (
-    "id", "nome", "telefone", "email", "email_verificado_em", "senha_hash", "google_sub",
+    "id", "nome", "idade", "telefone", "email", "email_verificado_em", "senha_hash", "google_sub",
     "foto_url", "papel", "ativo", "consentimento_lgpd_em", "anonimizado_em",
     "ultimo_login_em", "criado_em", "atualizado_em",
 )
@@ -47,6 +49,7 @@ DDL_USUARIOS_ATUAL = """
 CREATE TABLE usuarios_novo (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
   nome                 TEXT    NOT NULL,
+  idade                INTEGER CHECK (idade BETWEEN 13 AND 120),
   telefone             TEXT    UNIQUE,
   email                TEXT,
   email_verificado_em  TEXT,
@@ -130,6 +133,7 @@ def inicializar() -> Path:
         con.close()
     if migrou:
         print("[magno] banco migrado para o schema v2 (login por telefone+PIN ou Google)")
+    configurar_seed_dev()
     return DB_PATH
 
 
@@ -167,27 +171,109 @@ def registrar_evento(tipo: str, ator_id: int | None = None, agendamento_id: int 
         pass
 
 
+
+def obter_usuario_por_email(email: str) -> dict | None:
+    """Busca um usuário pelo e-mail (case-insensitive)."""
+    con = conectar()
+    try:
+        return con.execute("SELECT * FROM usuarios WHERE lower(email) = ?", (email.lower(),)).fetchone()
+    finally:
+        con.close()
+
+
+def obter_usuario_por_telefone(telefone: str) -> dict | None:
+    """Busca um usuário pelo telefone (E.164)."""
+    con = conectar()
+    try:
+        return con.execute("SELECT * FROM usuarios WHERE telefone = ?", (telefone,)).fetchone()
+    finally:
+        con.close()
+
+
+def obter_servico_por_nome(nome: str) -> dict | None:
+    con = conectar()
+    try:
+        return con.execute("SELECT * FROM servicos WHERE nome = ?", (nome,)).fetchone()
+    finally:
+        con.close()
+
+
+def obter_profissional_por_apelido(apelido: str) -> dict | None:
+    con = conectar()
+    try:
+        return con.execute("SELECT p.*, u.nome FROM profissionais p JOIN usuarios u ON p.usuario_id = u.id WHERE p.apelido = ?", (apelido,)).fetchone()
+    finally:
+        con.close()
+
+
+def criar_agendamento(cliente_id: int, profissional_id: int, servico_id: int,
+                      inicio_utc: datetime, fim_utc: datetime, duracao_min: int, preco_centavos: int,
+                      observacao: str | None = None) -> dict:
+    """Grava a reserva com timestamps UTC ISO; o endpoint já valida disponibilidade."""
+    inicio = inicio_utc.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    fim = fim_utc.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    con = conectar()
+    try:
+        codigo = secrets.token_urlsafe(8)
+        cur = con.execute(
+            "INSERT INTO agendamentos (codigo, cliente_id, profissional_id, servico_id, inicio, fim, duracao_min, preco_centavos, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (codigo, cliente_id, profissional_id, servico_id, inicio, fim, duracao_min, preco_centavos, observacao),
+        )
+        con.commit()
+        return dict(con.execute("SELECT * FROM agendamentos WHERE id = ?", (cur.lastrowid,)).fetchone())
+    finally:
+        con.close()
+
+
+def listar_agendamentos_do_cliente(cliente_id: int) -> list[dict]:
+    con = conectar()
+    try:
+        return con.execute("SELECT * FROM agendamentos WHERE cliente_id = ? ORDER BY inicio DESC", (cliente_id,)).fetchall()
+    finally:
+        con.close()
+
+def configurar_seed_dev() -> None:
+    """Cria profissionais de demonstração apenas quando o modo demo é ativado."""
+    if os.environ.get("MAGNO_SEED_DEV") != "1":
+        return
+    con = conectar()
+    try:
+        for nome, email, bio in (
+            ("Rafael", "rafael@barbeariamagnum.com", "Especialista em degradê e navalha"),
+            ("Bruno", "bruno@barbeariamagnum.com", "Clássico na tesoura"),
+        ):
+            con.execute(
+                "INSERT OR IGNORE INTO usuarios (nome, email, papel) VALUES (?, ?, 'barbeiro')",
+                (nome, email),
+            )
+            usuario = con.execute("SELECT id FROM usuarios WHERE email = ?", (email,)).fetchone()
+            con.execute(
+                "INSERT OR IGNORE INTO profissionais (usuario_id, apelido, bio) VALUES (?, ?, ?)",
+                (usuario["id"], nome, bio),
+            )
+        for profissional in con.execute("SELECT id FROM profissionais"):
+            for servico in con.execute("SELECT id FROM servicos"):
+                con.execute(
+                    "INSERT OR IGNORE INTO servico_profissional (servico_id, profissional_id) VALUES (?, ?)",
+                    (servico["id"], profissional["id"]),
+                )
+        con.commit()
+    finally:
+        con.close()
+
+
 def resumo() -> dict:
     """Panorama do banco para o health-check: prova que o SQL rodou de verdade."""
     con = conectar()
     try:
-        tabelas = [
-            r["name"]
-            for r in con.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
-            )
-        ]
-        contagens = {t: con.execute(f'SELECT COUNT(*) AS c FROM "{t}"').fetchone()["c"] for t in tabelas}
-        indices = [
-            r["name"]
-            for r in con.execute("SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx%' ORDER BY name")
-        ]
-        return {
-            "arquivo": str(DB_PATH),
-            "tabelas": len(tabelas),
-            "contagens": contagens,
-            "indices": len(indices),
-            "integridade": con.execute("PRAGMA quick_check").fetchone()[0],
-        }
+        tabelas = [r["name"] for r in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+        )]
+        contagens = {t: con.execute(f'SELECT COUNT(*) AS c FROM \"{t}\"').fetchone()["c"] for t in tabelas}
+        indices = [r["name"] for r in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx%' ORDER BY name"
+        )]
+        return {"arquivo": str(DB_PATH), "tabelas": len(tabelas), "contagens": contagens,
+                "indices": len(indices), "integridade": con.execute("PRAGMA quick_check").fetchone()[0]}
     finally:
         con.close()

@@ -53,7 +53,8 @@ def test_callback_cria_conta_e_devolve_sessao(cliente):
     r = autenticar(cliente)
     assert r.status_code in (302, 307), r.text
     local = r.headers["location"]
-    assert local.startswith("/conta.html#entrar="), local
+    # o token viaja no fragmento (não vai para log nem Referer); a tela de login o guarda
+    assert local.startswith("/login?next=/account#entrar="), local
     token = local.split("#entrar=")[1]
 
     me = cliente.get("/api/auth/me", headers={"Authorization": "Bearer " + token})
@@ -87,8 +88,15 @@ def test_conta_google_completa_telefone(cliente):
 
 
 def test_destino_do_login_e_respeitado(cliente):
-    r = autenticar(cliente, destino="/painel.html")
-    assert r.headers["location"].startswith("/painel.html#entrar=")
+    """Destino interno conhecido (/perfil) sobrevive ao vai-e-vem do OAuth."""
+    r = autenticar(cliente, destino="/perfil")
+    assert r.headers["location"].startswith("/login?next=/perfil#entrar="), r.headers["location"]
+
+
+def test_destino_externo_nao_vira_open_redirect(cliente):
+    """Link malicioso ("?destino=https://outro.site") cai na agenda, nunca fora da loja."""
+    r = autenticar(cliente, destino="https://malicioso.test/painel.html")
+    assert r.headers["location"].startswith("/login?next=/account#entrar="), r.headers["location"]
 
 
 # ------------------------------------------------------------------ segurança
@@ -99,18 +107,18 @@ def test_state_de_uso_unico(cliente):
     assert "entrar=" in primeira.headers["location"]
     repetida = cliente.get(f"/api/auth/google/callback?code={IDENTIDADE}&state={state}",
                            follow_redirects=False)
-    assert repetida.headers["location"] == "/entrar.html?erro=state_invalido"
+    assert repetida.headers["location"] == "/login?erro=state_invalido"
 
 
 def test_state_inventado_e_recusado(cliente):
     r = cliente.get(f"/api/auth/google/callback?code={IDENTIDADE}&state=inventado",
                     follow_redirects=False)
-    assert r.headers["location"] == "/entrar.html?erro=state_invalido"
+    assert r.headers["location"] == "/login?erro=state_invalido"
 
 
 def test_cancelamento_no_google_volta_para_o_login(cliente):
     r = cliente.get("/api/auth/google/callback?error=access_denied&state=x", follow_redirects=False)
-    assert r.headers["location"] == "/entrar.html?erro=google_cancelado"
+    assert r.headers["location"] == "/login?erro=google_cancelado"
 
 
 def test_state_expirado_e_recusado(cliente):
@@ -123,7 +131,7 @@ def test_state_expirado_e_recusado(cliente):
     con.close()
     r = cliente.get(f"/api/auth/google/callback?code={IDENTIDADE}&state={state}",
                     follow_redirects=False)
-    assert r.headers["location"] == "/entrar.html?erro=state_invalido"
+    assert r.headers["location"] == "/login?erro=state_invalido"
 
 
 # ------------------------------------------------------------------ vínculo

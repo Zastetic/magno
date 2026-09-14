@@ -14,6 +14,7 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS usuarios (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
   nome                 TEXT    NOT NULL,
+  idade                INTEGER CHECK (idade BETWEEN 13 AND 120),
   telefone             TEXT    UNIQUE,         -- E.164 sem '+' — NULL se não informado ainda
   email                TEXT,                   -- entrada principal (código por e-mail)
   email_verificado_em  TEXT,                   -- quando o código foi confirmado

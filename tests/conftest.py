@@ -25,3 +25,22 @@ os.environ["MAGNO_URL_BASE"] = "http://testserver"
 os.environ["GOOGLE_FAKE"] = "1"
 os.environ.pop("GOOGLE_CLIENT_ID", None)
 os.environ.pop("GOOGLE_CLIENT_SECRET", None)
+
+
+# --------------------------------------------------------------- fixtures (pytest)
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def limites_zerados():
+    """Zera o freio por IP antes de cada teste.
+
+    O limitador é global de propósito (um dicionário no processo). Sem isso, os testes —
+    que fazem dezenas de requisições do mesmo "IP" (testclient) — esbarram no 429 e a
+    suíte inteira falha por um motivo que não é o que ela quer medir. Os testes de limite
+    (tests/test_limites.py) forçam a regra que querem testar dentro do próprio teste.
+    """
+    from server import limites
+    limites.limpar()
+    yield
+    limites.limpar()

@@ -46,18 +46,42 @@
     }).catch(function () { /* offline: o token local ainda é removido */ }).then(function () { sair(); });
   }
 
+  // Ações que o CAPTCHA protege (o back-end só exige quando MAGNO_TURNSTILE está ligado).
+  var CAMINHOS_COM_CAPTCHA = ["/api/auth/cadastro", "/api/auth/login", "/api/auth/entrar-senha",
+                             "/api/auth/codigo", "/api/bookings"];
+
+  function comCaptcha(caminho, cfg) {
+    var captcha = window.MagnoTurnstile;
+    if (!captcha || !captcha.ativo || !captcha.ativo() || CAMINHOS_COM_CAPTCHA.indexOf(caminho) < 0) {
+      return Promise.resolve(cfg);
+    }
+    return captcha.executar().then(function (tokenCaptcha) {
+      if (!tokenCaptcha) return cfg;                 // sem token o back-end responde 400/captcha
+      try {
+        var corpo = JSON.parse(cfg.body || "{}");
+        corpo.turnstile = tokenCaptcha;
+        cfg.body = JSON.stringify(corpo);
+      } catch (e) { /* corpo não é JSON: segue como veio */ }
+      return cfg;
+    });
+  }
+
   function pedir(caminho, opcoes) {
     var cfg = opcoes || {};
     cfg.headers = Object.assign({ "Content-Type": "application/json" }, cfg.headers || {});
     var token = lerSessao();
     if (token) cfg.headers.Authorization = "Bearer " + token;
-    return fetch(caminho, cfg).then(function (r) {
-      return r.json().catch(function () { return {}; }).then(function (corpo) {
-        if (!r.ok) {
-          throw Object.assign(new Error(corpo.erro || "Deu erro. Tente de novo."),
-                              { corpo: corpo, status: r.status });
-        }
-        return corpo;
+    return comCaptcha(caminho, cfg).then(function (cfgPronto) {
+      return fetch(caminho, cfgPronto).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (corpo) {
+          if (!r.ok) {
+            // token do Turnstile é de uso único: se foi recusado, o widget precisa de reset
+            if (corpo && corpo.codigo === "captcha" && window.MagnoTurnstile) window.MagnoTurnstile.reiniciar();
+            throw Object.assign(new Error(corpo.erro || "Deu erro. Tente de novo."),
+                                { corpo: corpo, status: r.status });
+          }
+          return corpo;
+        });
       });
     });
   }

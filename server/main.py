@@ -5,6 +5,7 @@ F0: esqueleto, banco e health-check · F1: login por telefone+PIN e login com Go
 from __future__ import annotations
 
 import html
+import json
 import os
 import secrets
 import sqlite3
@@ -21,11 +22,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from server import auth, db, email_provider, google_auth
+from server import auth, db, email_provider, google_auth, limites, turnstile
 
 RAIZ = Path(__file__).resolve().parent.parent
 WEB = RAIZ / "web"
-VERSAO = "0.2.0-f1"
+VERSAO = "0.3.0-f6"
 LIMITE_CORPO_BYTES = 1_000_000
 MINUTOS_STATE = 10
 # Únicos destinos internos que aceitamos depois do login (evita open redirect no OAuth).
@@ -39,13 +40,18 @@ class BookingRequest(BaseModel):
     barber: str = Field(min_length=1, max_length=100)
     date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     time: str = Field(pattern=r"^\d{2}:\d{2}$")
+    turnstile: str | None = Field(default=None, max_length=4096)
 
 
 CSP = (
-    "default-src 'self'; script-src 'self'; "
+    "default-src 'self'; "
+    # O Turnstile injeta o script e o widget dele; sem isso o navegador bloqueia o CAPTCHA.
+    "script-src 'self' https://challenges.cloudflare.com; "
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
     "img-src 'self' data: https://lh3.googleusercontent.com; "
     "font-src 'self' https://fonts.gstatic.com; "
+    "frame-src https://challenges.cloudflare.com; "
+    "connect-src 'self' https://challenges.cloudflare.com; "
     "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 )
 
@@ -80,12 +86,29 @@ async def cabecalhos_de_seguranca(request: Request, call_next):
     if tamanho and tamanho.isdigit() and int(tamanho) > LIMITE_CORPO_BYTES:
         return JSONResponse({"erro": "Requisição grande demais.", "codigo": "corpo_grande"}, status_code=413)
 
+    # Freio por IP antes de qualquer trabalho: cadastro, login, código, agendamento…
+    if request.url.path.startswith("/api"):
+        ip = limites.ip_do_cliente(request)
+        liberado, esperar = limites.permitir(request.method, request.url.path, ip)
+        if not liberado:
+            db.registrar_evento("limite_estourado",
+                                payload=json.dumps({"ip": ip, "rota": request.url.path,
+                                                    "metodo": request.method}))
+            return JSONResponse(
+                {"erro": f"Muitas requisições. Espere {esperar} segundo(s) e tente de novo.",
+                 "codigo": "limite"},
+                status_code=429, headers={"Retry-After": str(esperar)})
+
     resposta = await call_next(request)
     cabecalhos = resposta.headers
     cabecalhos["X-Content-Type-Options"] = "nosniff"
     cabecalhos["X-Frame-Options"] = "DENY"
     cabecalhos["Referrer-Policy"] = "no-referrer"
+    cabecalhos["Permissions-Policy"] = "geolocation=(), camera=(), microphone=(), payment=()"
     cabecalhos["Content-Security-Policy"] = CSP
+    # HSTS só faz sentido servindo HTTPS (atrás do túnel); em dev não atrapalha nem é enviado.
+    if request.url.scheme == "https" or request.headers.get("cf-visitor"):
+        cabecalhos["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     if request.url.path.startswith("/api"):
         cabecalhos["Cache-Control"] = "no-store"
     return resposta
@@ -93,12 +116,23 @@ async def cabecalhos_de_seguranca(request: Request, call_next):
 
 @app.exception_handler(StarletteHTTPException)
 async def erro_padronizado(request: Request, exc: StarletteHTTPException):
-    """Todo erro sai como {"erro": mensagem em pt-BR, "codigo": slug}."""
+    """Todo erro sai como {"erro": mensagem em pt-BR, "codigo": slug}.
+
+    Exceção: navegador pedindo uma página que não existe recebe a 404 do site, não JSON.
+    """
     detalhe = exc.detail
     if isinstance(detalhe, dict) and "erro" in detalhe:
         corpo = detalhe
     else:
         corpo = {"erro": str(detalhe), "codigo": "erro"}
+    # Atenção: o arquivo NÃO pode se chamar 404.html — o StaticFiles(html=True) do mount "/"
+    # serve esse nome para qualquer caminho desconhecido, inclusive /api/* (aí a API devolveria
+    # HTML em vez de JSON). Por isso a página vive como pagina-404.html.
+    if (exc.status_code == 404 and not request.url.path.startswith("/api")
+            and "text/html" in request.headers.get("accept", "")):
+        pagina = WEB / "pagina-404.html"
+        if pagina.is_file():
+            return FileResponse(pagina, status_code=404, headers={"Cache-Control": "no-store"})
     return JSONResponse(corpo, status_code=exc.status_code,
                         headers=getattr(exc, "headers", None))
 
@@ -129,6 +163,10 @@ def saude() -> dict:
             "email_pronto": email_provider.configurado(),
             "email_remetente": email_provider.remetente(),
         },
+        "protecoes": {
+            "limites": limites.estado(),
+            "captcha": turnstile.estado(),
+        },
         "regras": {
             "slot_min": db.config("slot_min"),
             "buffer_min": db.config("buffer_min"),
@@ -140,6 +178,17 @@ def saude() -> dict:
     }
 
 
+@app.get("/api/publica/config")
+def config_publica() -> dict:
+    """O que o site pode saber sem estar logado (nada sensível)."""
+    return {
+        "versao": VERSAO,
+        "captcha": {"chave_site": turnstile.estado()["chave_site"],
+                    "modo": turnstile.estado()["modo"]},
+        "contato": {"whatsapp": db.config("whatsapp") if "whatsapp" in db.configuracoes() else ""},
+    }
+
+
 # ================================================================== cadastro
 class CorpoCadastro(BaseModel):
     nome: str = Field(min_length=2, max_length=80)
@@ -147,11 +196,15 @@ class CorpoCadastro(BaseModel):
     pin: str
     email: str | None = None
     consentimento_lgpd: bool = False
+    turnstile: str | None = Field(default=None, max_length=4096)
+
 
 
 class CorpoLogin(BaseModel):
     telefone: str
     pin: str
+    turnstile: str | None = Field(default=None, max_length=4096)
+
 
 
 class CorpoTelefone(BaseModel):
@@ -164,11 +217,14 @@ class CorpoPerfil(BaseModel):
 
 
 def _ip(request: Request) -> str | None:
-    return request.client.host if request.client else None
+    """IP do cliente de verdade: atrás do cloudflared o `request.client` é 127.0.0.1,
+    o que faria o lockout de login ser global em vez de por telefone+IP."""
+    return limites.ip_do_cliente(request)
 
 
 @app.post("/api/auth/cadastro")
 def cadastrar(corpo: CorpoCadastro, request: Request):
+    turnstile.exigir(request, corpo.turnstile)
     if not corpo.consentimento_lgpd:
         raise HTTPException(400, {"erro": "É preciso aceitar os termos e a política de privacidade.",
                                   "codigo": "sem_consentimento"})
@@ -217,6 +273,7 @@ def cadastrar(corpo: CorpoCadastro, request: Request):
 
 @app.post("/api/auth/login")
 def entrar(corpo: CorpoLogin, request: Request):
+    turnstile.exigir(request, corpo.turnstile)
     telefone = auth.normalizar_telefone(corpo.telefone) or ""
     ip = _ip(request)
 
@@ -313,6 +370,8 @@ def completar_telefone(corpo: CorpoTelefone, usuario: dict = Depends(auth.usuari
 class CorpoEmail(BaseModel):
     email: str
     nome: str | None = None
+    turnstile: str | None = Field(default=None, max_length=4096)
+
 
 
 class CorpoCodigo(BaseModel):
@@ -328,11 +387,14 @@ class CorpoSenha(BaseModel):
 class CorpoEntrarSenha(BaseModel):
     email: str
     senha: str
+    turnstile: str | None = Field(default=None, max_length=4096)
+
 
 
 @app.post("/api/auth/codigo")
 def pedir_codigo(corpo: CorpoEmail, request: Request):
     """Manda um código de 5 dígitos para o e-mail. É a entrada principal — sem senha."""
+    turnstile.exigir(request, corpo.turnstile)
     email = auth.normalizar_email(corpo.email)
     if not email:
         raise HTTPException(400, {"erro": "Confira o e-mail digitado.", "codigo": "email_invalido"})
@@ -417,6 +479,7 @@ def criar_senha(corpo: CorpoSenha, usuario: dict = Depends(auth.usuario_atual)):
 
 @app.post("/api/auth/entrar-senha")
 def entrar_com_senha(corpo: CorpoEntrarSenha, request: Request):
+    turnstile.exigir(request, corpo.turnstile)
     email = auth.normalizar_email(corpo.email) or ""
     ip = _ip(request)
     restante = auth.bloqueio_restante(email, ip)
@@ -440,7 +503,9 @@ def entrar_com_senha(corpo: CorpoEntrarSenha, request: Request):
 
 # ================================================================ agendamentos
 @app.post("/api/bookings", status_code=201)
-def criar_booking(corpo: BookingRequest, usuario: dict = Depends(auth.usuario_atual)):
+def criar_booking(corpo: BookingRequest, request: Request,
+                  usuario: dict = Depends(auth.usuario_atual)):
+    turnstile.exigir(request, corpo.turnstile)
     """Confirma um horário autenticado, impedindo conflito de agenda do profissional."""
     telefone = auth.normalizar_telefone(corpo.phone)
     if not telefone:
@@ -633,6 +698,14 @@ if WEB.is_dir():
     @app.get("/login", include_in_schema=False)
     def login_page():
         return FileResponse(WEB / "entrar.html")
+
+    @app.get("/privacidade", include_in_schema=False)
+    def privacidade_page():
+        return FileResponse(WEB / "privacidade.html")
+
+    @app.get("/termos", include_in_schema=False)
+    def termos_page():
+        return FileResponse(WEB / "termos.html")
 
     @app.get("/account", include_in_schema=False)
     def account_page():

@@ -1,0 +1,9 @@
+# Barbearia Magnum — o que os buscadores podem visitar.
+User-agent: *
+Allow: /
+Disallow: /account
+Disallow: /perfil
+Disallow: /api/
+Disallow: /status.html
+
+Sitemap: https://magnum.autoava.us/sitemap.xml

@@ -94,7 +94,17 @@ Porta 8100 · banco `data/magno.db` (testes usam `MAGNO_DB=/tmp/test-magno.db`).
       lista de dias com rolagem horizontal no celular estreito. Medido por `scripts/audita_mobile.py`
       em 6 páginas × 4 larguras (360/390/414/768): 0 problemas, prints em `/tmp/mobile/`
 - [ ] Acessibilidade: labels, foco visível, contraste AA, teclado no fluxo de agendamento
-- [ ] Rate limit geral por IP, mensagens de erro em pt-BR revisadas
+- [x] **Rate limit geral por IP** (`server/limites.py`, D26): regras por ação (cadastro 5/h,
+      código 6/h, login 15/15 min, agendamento 12/h) + teto de 600 req/min por IP, 429 com
+      `Retry-After`, evento `limite_estourado` na auditoria e mensagem em pt-BR. 10 testes em
+      `tests/test_limites.py`; o `conftest` zera os contadores entre testes
+- [x] **CAPTCHA Cloudflare Turnstile** (D27): widget invisível em `web/turnstile.js`, verificação
+      no servidor (`server/turnstile.py`) em cadastro, código por e-mail, login e agendamento.
+      Sem chave o site funciona igual; `MAGNO_TURNSTILE_MODO=log` verifica sem bloquear
+- [x] **Páginas de Privacidade e Termos** (`/privacidade`, `/termos`) + links no rodapé de todas
+      as páginas e aviso de consentimento nas telas que criam conta
+- [x] 404 do site (o `/api` continua JSON), `robots.txt`, `sitemap.xml`, canonical + meta de
+      compartilhamento (OG/Twitter) e `Permissions-Policy`/HSTS nos cabeçalhos
 - [ ] Backup diário (`scripts/backup.sh` + cronjob Hermes `no_agent`)
 - **Pronto quando:** suíte completa verde + navegação do fluxo inteiro no celular sem zoom.
 
@@ -112,3 +122,19 @@ Porta 8100 · banco `data/magno.db` (testes usam `MAGNO_DB=/tmp/test-magno.db`).
 ## Depois da v1 (não fazer agora)
 Confirmação por WhatsApp API, sinal/entrada paga, fidelidade, comissão, estoque de produtos,
 múltiplas unidades, avaliação com nota, fila de espera, PWA instalável.
+
+## Para abrir ao público — o que ainda falta (checado em 2026-09-14)
+
+Proteções e acabamento já estão no código. O que **bloqueia** uma abertura de verdade:
+
+1. **Disponibilidade real (F3)** — a grade de dias/horas do cartão de agendamento ainda está fixa
+   no HTML (`data-date` de 16 a 20/09/2026). Depois dessa data, não dá mais para agendar
+   (`GET /api/publica/disponibilidade` + `POST /api/publica/agendar` com `BEGIN IMMEDIATE`).
+2. **Envio de e-mail de verdade** — hoje `MAGNO_EMAIL_MODO=arquivo` grava o código em
+   `logs/emails/`. Cliente real precisa de `smtp`/`resend`/`brevo` + SPF/DKIM (D23/D24).
+3. **Chaves do Turnstile** (D27): criar o widget no painel Cloudflare e pôr `MAGNO_TURNSTILE_SITE`
+   e `MAGNO_TURNSTILE_SECRET`; começar com `MODO=log` e depois virar `on`.
+4. **Credenciais do Google** (`GOOGLE_CLIENT_ID`/`SECRET`) — hoje o botão só funciona com `GOOGLE_FAKE`.
+5. **Admin real** criado e credenciais de exemplo trocadas (`MAGNO_SEED_DEV` fora de produção).
+6. **Public Hostname no Cloudflare** (`magnum.autoava.us` → `HTTP 127.0.0.1:8100`) e HTTPS conferido.
+7. **Backup diário** do banco (`scripts/backup.sh` + cronjob) antes de ter cliente de verdade.

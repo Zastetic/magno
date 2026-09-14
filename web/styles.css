@@ -1156,3 +1156,27 @@ button.client-avatar:focus-visible { outline: 2px solid var(--latao); outline-of
   /* respiro embaixo para o dedão não cobrir o botão de confirmar */
   .client-page { padding-bottom: 96px; }
 }
+
+/* ------------------------------------------- páginas de texto (Privacidade / Termos)
+   Ficam no fim do arquivo de propósito: assim vencem por ordem de cascata as regras
+   genéricas de tipografia acima. */
+.documento { padding: 62px 0 74px; }
+.documento .limite { max-width: 780px; }
+.documento h1 { font-family: var(--serif); font-weight: 400; font-size: 44px; line-height: 1.1; margin: 6px 0 8px; color: var(--tinta); }
+.documento .atualizado { color: var(--tinta-3); font-size: 13px; margin: 0 0 28px; }
+.documento p, .documento li { color: var(--tinta-2); font-size: 16px; line-height: 1.72; }
+.documento h2 { font-size: 19px; font-weight: 600; margin: 34px 0 10px; color: var(--tinta); }
+.documento ul { display: grid; gap: 9px; margin: 0; padding-left: 20px; }
+.documento b, .documento strong { color: var(--tinta); font-weight: 600; }
+.documento a { color: var(--latao-claro); text-underline-offset: 3px; }
+.documento a:hover { color: var(--latao); }
+.documento .rodape-doc { margin-top: 36px; padding-top: 20px; border-top: 1px solid var(--linha); font-size: 15px; }
+@media (max-width: 700px) {
+  .documento { padding: 34px 0 50px; }
+  .documento h1 { font-size: 32px; }
+  .documento p, .documento li { font-size: 15px; }
+}
+
+/* aviso de consentimento nas telas de entrada (LGPD) */
+.consentimento-linha { margin: 14px 0 0; color: var(--tinta-3); font-size: 12px; line-height: 1.6; }
+.consentimento-linha a { color: var(--latao-claro); text-underline-offset: 2px; }

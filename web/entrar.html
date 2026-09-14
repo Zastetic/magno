@@ -51,6 +51,7 @@
                  placeholder="voce@email.com">
         </div>
         <button class="btn btn-cheio btn-largo" type="submit">Receber código</button>
+        <p class="consentimento-linha">Ao entrar você aceita os <a href="/termos">Termos de uso</a> e a <a href="/privacidade">Política de privacidade</a>.</p>
       </form>
 
       <!-- ------------------------------------------------- passo 2: código -->
@@ -112,6 +113,7 @@
                  maxlength="6" placeholder="••••">
         </div>
         <button class="btn btn-vazado btn-largo" type="submit">Entrar com PIN</button>
+        <p class="consentimento-linha">Ao entrar você aceita os <a href="/termos">Termos de uso</a> e a <a href="/privacidade">Política de privacidade</a>.</p>
       </form>
 
       <p class="dica">
@@ -125,10 +127,13 @@
 <footer class="rodape">
   <div class="limite">
     <p>© <span id="ano">2026</span> Barbearia Magnum</p>
-    <nav><a href="status.html">Status do sistema</a></nav>
+    <nav><a href="status.html">Status do sistema</a>  <a href="/privacidade">Privacidade</a>
+    <a href="/termos">Termos</a>
+  </nav>
   </div>
 </footer>
 
-<script src="auth.js" defer></script>
+<script src="turnstile.js?v=captcha-1" defer></script>
+<script src="auth.js?v=captcha-1" defer></script>
 </body>
 </html>

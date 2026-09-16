@@ -12,7 +12,6 @@ import sqlite3
 from urllib.parse import quote
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -22,15 +21,30 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from server import auth, db, email_provider, google_auth, limites, turnstile
+from server import agenda, auth, db, email_provider, google_auth, limites, turnstile
 
 RAIZ = Path(__file__).resolve().parent.parent
 WEB = RAIZ / "web"
-VERSAO = "0.3.0-f6"
+SLIDES = RAIZ / "docs" / "slides"   # deck da apresentação (scripts/gera_slides.py)
+VERSAO = "0.4.0-f3"
 LIMITE_CORPO_BYTES = 1_000_000
 MINUTOS_STATE = 10
 # Únicos destinos internos que aceitamos depois do login (evita open redirect no OAuth).
 DESTINOS_LOGIN = ("/account", "/perfil")
+
+
+def preco_texto(centavos: int) -> str:
+    """Preço como o site mostra: `R$ 45` (sem centavos quando redondo), `R$ 45,50` quando não."""
+    reais, resto = divmod(int(centavos), 100)
+    return f"R$ {reais}" if resto == 0 else f"R$ {reais},{resto:02d}"
+
+
+def duracao_texto(minutos: int) -> str:
+    """Duração como o site mostra: 30 min · 45 min · 1 h · 1 h 30."""
+    horas, resto = divmod(int(minutos), 60)
+    if not horas:
+        return f"{resto} min"
+    return f"{horas} h" if not resto else f"{horas} h {resto:02d}"
 
 # --- Novos tipos para o agendamento
 class BookingRequest(BaseModel):
@@ -187,6 +201,83 @@ def config_publica() -> dict:
                     "modo": turnstile.estado()["modo"]},
         "contato": {"whatsapp": db.config("whatsapp") if "whatsapp" in db.configuracoes() else ""},
     }
+
+
+# =============================================== catálogo + agenda pública (F3)
+@app.get("/api/publica/servicos")
+def servicos_publicos() -> dict:
+    """Catálogo ativo. A duração daqui é o que dimensiona a grade de horários."""
+    return {"servicos": [
+        {"id": int(servico["id"]), "nome": servico["nome"], "descricao": servico["descricao"],
+         "duracao_min": int(servico["duracao_min"]),
+         "preco_centavos": int(servico["preco_centavos"]),
+         "preco": preco_texto(servico["preco_centavos"]),
+         "duracao": duracao_texto(servico["duracao_min"]),
+         "imagem_url": servico["imagem_url"]}
+        for servico in db.listar_servicos_ativos()
+    ]}
+
+
+@app.get("/api/publica/equipe")
+def equipe_publica(servico_id: int | None = None) -> dict:
+    """Equipe ativa; com `servico_id`, só quem executa aquele serviço."""
+    habilitados = db.servicos_por_profissional()
+    profissionais = db.listar_profissionais_ativos()
+    if servico_id is not None:
+        profissionais = [p for p in profissionais if servico_id in habilitados.get(int(p["id"]), [])]
+    return {"profissionais": [
+        {"id": int(p["id"]), "nome": p["nome"], "apelido": p["apelido"] or p["nome"],
+         "bio": p["bio"], "foto_url": p["foto_url"],
+         "servicos": habilitados.get(int(p["id"]), [])}
+        for p in profissionais
+    ]}
+
+
+def _dia_iso(texto: str, campo: str):
+    try:
+        return datetime.strptime(texto.strip(), "%Y-%m-%d").date()
+    except (AttributeError, ValueError):
+        raise HTTPException(400, {"erro": f"Confira a data em {campo} (formato AAAA-MM-DD).",
+                                  "codigo": "validacao"})
+
+
+@app.get("/api/publica/disponibilidade")
+def disponibilidade_publica(servico_id: int, profissional_id: int | None = None,
+                            data: str | None = None, de: str | None = None,
+                            ate: str | None = None) -> dict:
+    """A grade de verdade, calculada na hora (`server/agenda.py`).
+
+    `data` devolve os slots livres do dia; `de`/`ate` (até 31 dias) devolve a contagem por dia,
+    que é o que a tira de dias do site usa. Nada aqui exige login — é o que o cliente vê antes
+    de criar conta, e é o mesmo cálculo que o `POST /api/bookings` valida.
+    """
+    servico = db.obter_servico(int(servico_id))
+    if not servico or not servico["ativo"]:
+        raise HTTPException(404, {"erro": "Serviço não encontrado.", "codigo": "nao_encontrado"})
+
+    con = db.conectar()
+    try:
+        if profissional_id is not None:
+            habilitados = agenda.profissionais_habilitados(con, int(servico_id), int(profissional_id))
+            if not habilitados:
+                raise HTTPException(404, {"erro": "Esse barbeiro não faz esse serviço.",
+                                          "codigo": "indisponivel"})
+        if data:
+            resposta = agenda.disponivel(con, servico, profissional_id, _dia_iso(data, "data"))
+        elif de and ate:
+            dia_de, dia_ate = _dia_iso(de, "de"), _dia_iso(ate, "ate")
+            if dia_ate < dia_de:
+                raise HTTPException(400, {"erro": "A data final é antes da inicial.",
+                                          "codigo": "validacao"})
+            if (dia_ate - dia_de).days + 1 > agenda.JANELA_MAX_DIAS:
+                raise HTTPException(400, {"erro": f"Peça no máximo {agenda.JANELA_MAX_DIAS} dias por vez.",
+                                          "codigo": "validacao"})
+            resposta = agenda.resumo_dias(con, servico, dia_de, dia_ate, profissional_id)
+        else:
+            raise HTTPException(400, {"erro": "Informe a data, ou de e ate.", "codigo": "validacao"})
+    finally:
+        con.close()
+    return resposta
 
 
 # ================================================================== cadastro
@@ -505,48 +596,48 @@ def entrar_com_senha(corpo: CorpoEntrarSenha, request: Request):
 @app.post("/api/bookings", status_code=201)
 def criar_booking(corpo: BookingRequest, request: Request,
                   usuario: dict = Depends(auth.usuario_atual)):
+    """Confirma um horário autenticado, validando pela MESMA grade que o site mostra.
+
+    O horário pedido tem que ser um slot livre de `agenda` (grade, funcionamento, exceções,
+    bloqueios, antecedência, janela e conflito). A gravação roda em `BEGIN IMMEDIATE`
+    (`agenda.marcar`), então dois pedidos no mesmo slot viram um 201 e um 409.
+    """
     turnstile.exigir(request, corpo.turnstile)
-    """Confirma um horário autenticado, impedindo conflito de agenda do profissional."""
     telefone = auth.normalizar_telefone(corpo.phone)
     if not telefone:
         raise HTTPException(400, {"erro": "Telefone inválido. Use DDD + número.", "codigo": "telefone_invalido"})
 
+    servico = db.obter_servico_por_nome(corpo.service)
+    profissional = db.obter_profissional_por_apelido(corpo.barber)
+    if not servico or not servico["ativo"] or not profissional or not profissional["ativo"]:
+        raise HTTPException(404, {"erro": "Serviço ou barbeiro não está disponível.", "codigo": "indisponivel"})
+
     try:
-        local = datetime.strptime(f"{corpo.date} {corpo.time}", "%Y-%m-%d %H:%M").replace(
-            tzinfo=ZoneInfo("America/Sao_Paulo")
+        inicio_local = datetime.strptime(f"{corpo.date} {corpo.time}", "%Y-%m-%d %H:%M").replace(
+            tzinfo=agenda.fuso()
         )
     except ValueError:
         raise HTTPException(400, {"erro": "Data ou horário inválido.", "codigo": "horario_invalido"})
-    if local <= datetime.now(ZoneInfo("America/Sao_Paulo")):
-        raise HTTPException(400, {"erro": "Escolha um horário futuro.", "codigo": "horario_passado"})
 
-    servico = db.obter_servico_por_nome(corpo.service)
-    profissional = db.obter_profissional_por_apelido(corpo.barber)
-    if not servico or not profissional:
-        raise HTTPException(404, {"erro": "Serviço ou barbeiro não está disponível.", "codigo": "indisponivel"})
-
-    inicio = local.astimezone(timezone.utc)
-    fim = inicio + timedelta(minutes=int(servico["duracao_min"]))
-    inicio_iso = inicio.strftime("%Y-%m-%dT%H:%M:%SZ")
-    fim_iso = fim.strftime("%Y-%m-%dT%H:%M:%SZ")
+    regra = agenda.regras()
     con = db.conectar()
     try:
-        habilitado = con.execute(
-            "SELECT 1 FROM servico_profissional WHERE servico_id = ? AND profissional_id = ?",
-            (servico["id"], profissional["id"]),
-        ).fetchone()
-        conflito = con.execute(
-            """SELECT 1 FROM agendamentos
-               WHERE profissional_id = ? AND status IN ('agendado','confirmado')
-                 AND inicio < ? AND fim > ? LIMIT 1""",
-            (profissional["id"], fim_iso, inicio_iso),
-        ).fetchone()
-        if not habilitado or conflito:
-            raise HTTPException(409, {"erro": "Esse horário acabou de ser ocupado. Escolha outro.", "codigo": "horario_ocupado"})
-        nome = corpo.name.strip()
+        ok, motivo = agenda.conferir(con, servico, int(profissional["id"]), inicio_local,
+                                     cliente_id=int(usuario["id"]), regra=regra)
+    finally:
+        con.close()
+    if not ok:
+        http, codigo, mensagem = agenda.recusa(motivo or agenda.OCUPADO, regra)
+        raise HTTPException(http, {"erro": mensagem, "codigo": codigo})
+
+    # Contato do cliente antes de reservar: se o telefone for de outra conta, ninguém
+    # fica com um agendamento órfão. `nome` também é o que o barbeiro vê no balcão.
+    con = db.conectar()
+    try:
         con.execute(
             "UPDATE usuarios SET nome = ?, telefone = COALESCE(telefone, ?), atualizado_em = ? WHERE id = ?",
-            (nome, telefone, datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), usuario["id"]),
+            (corpo.name.strip(), telefone, datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+             usuario["id"]),
         )
         con.commit()
     except sqlite3.IntegrityError:
@@ -556,12 +647,10 @@ def criar_booking(corpo: BookingRequest, request: Request,
         con.close()
 
     try:
-        agendamento = db.criar_agendamento(
-            int(usuario["id"]), int(profissional["id"]), int(servico["id"]), inicio, fim,
-            int(servico["duracao_min"]), int(servico["preco_centavos"]),
-        )
-    except sqlite3.IntegrityError:
-        raise HTTPException(409, {"erro": "Esse horário acabou de ser ocupado. Escolha outro.", "codigo": "horario_ocupado"})
+        agendamento = agenda.marcar(int(usuario["id"]), servico, int(profissional["id"]), inicio_local,
+                                    regra=regra)
+    except agenda.HorarioOcupado as conflito:
+        raise HTTPException(409, {"erro": str(conflito), "codigo": conflito.codigo})
 
     db.registrar_evento("agendamento.criado", usuario["id"], agendamento["id"])
     return {"agendamento": {"codigo": agendamento["codigo"], "inicio": agendamento["inicio"],
@@ -716,5 +805,23 @@ if WEB.is_dir():
     def perfil_page():
         """Primeiro acesso: nome → idade → agenda. Só o Bearer libera os dados."""
         return FileResponse(WEB / "perfil.html", headers={"Cache-Control": "no-store"})
+
+    @app.get("/apresentacao", include_in_schema=False)
+    def apresentacao_page():
+        """Deck da apresentação do código, no design do site (docs/slides/apresentacao.html)."""
+        return FileResponse(SLIDES / "apresentacao.html")
+
+    @app.get("/apresentacao/slides.pdf", include_in_schema=False)
+    def apresentacao_pdf():
+        """Mesmo deck em PDF 16:9, para apresentar ou imprimir."""
+        return FileResponse(SLIDES / "apresentacao.pdf", media_type="application/pdf")
+
+    @app.get("/apresentacao/slides.txt", include_in_schema=False)
+    def apresentacao_roteiro():
+        """Roteiro em texto (UTF-8 com BOM, abre certo no Notepad/Word do Windows)."""
+        return FileResponse(SLIDES.parent / "07-APRESENTACAO.txt", media_type="text/plain; charset=utf-8")
+
+    if (SLIDES / "png").is_dir():
+        app.mount("/apresentacao/png", StaticFiles(directory=str(SLIDES / "png")), name="slides_png")
 
     app.mount("/", StaticFiles(directory=str(WEB), html=True), name="web")

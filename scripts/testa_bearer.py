@@ -114,24 +114,53 @@ def main() -> int:
     status, conta = pedir("GET", "/api/account", token=token)
     checa("a agenda já mostra o nome novo", conta.get("usuario", {}).get("nome") == "Okai Verificação")
 
-    print("\n6) agendamento autenticado de verdade")
-    # dia e hora sorteados: o script é rodado muitas vezes e não pode colidir consigo mesmo
-    corpo_reserva, reserva, status = {}, {}, 0
-    for _ in range(6):
-        dia = (datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=-3)))
-               + timedelta(days=random.randint(5, 45))).strftime("%Y-%m-%d")
-        hora = random.choice([f"{h:02d}:{m:02d}" for h in range(9, 19) for m in (0, 30)])
-        corpo_reserva = {"name": "Okai Verificação", "phone": telefone, "service": "Corte masculino",
-                         "barber": "Rafael", "date": dia, "time": hora}
-        status, reserva = pedir("POST", "/api/bookings", corpo_reserva, token=token)
-        if status == 201:
-            break
-    checa("POST /api/bookings com Bearer -> 201", status == 201, f"{status} {reserva} ({corpo_reserva.get('date')} {corpo_reserva.get('time')})")
+    print("\n6) agendamento autenticado de verdade (grade calculada pelo servidor)")
+    # A grade não está mais no HTML: o script pergunta ao servidor qual o primeiro horário
+    # livre dos próximos dias — assim ele nunca chuta domingo, feriado nem hora fora da grade.
+    fuso_local = timezone(timedelta(hours=-3))
+    _, servicos = pedir("GET", "/api/publica/servicos")
+    checa("GET /api/publica/servicos -> 200", isinstance(servicos, dict) and bool(servicos.get("servicos")))
+    corte = next((s for s in servicos.get("servicos", []) if s["nome"] == "Corte masculino"), None)
+    _, equipe = pedir("GET", f"/api/publica/equipe?servico_id={corte['id'] if corte else 1}")
+    rafael = next((p for p in equipe.get("profissionais", []) if p["apelido"] == "Rafael"), None)
+    checa("o catálogo e a equipe vêm do banco", bool(corte) and bool(rafael), str(equipe)[:120])
+
+    dia = hora = ""
+    de = datetime.now(fuso_local).strftime("%Y-%m-%d")
+    ate = (datetime.now(fuso_local) + timedelta(days=20)).strftime("%Y-%m-%d")
+    _, grade = pedir("GET", f"/api/publica/disponibilidade?servico_id={corte['id']}&profissional_id={rafael['id']}"
+                            f"&de={de}&ate={ate}")
+    dias_com_vaga = [d for d in grade.get("dias", []) if d["livres"]]
+    checa("a disponibilidade pública traz dias com vaga (sem login)", bool(dias_com_vaga),
+          str(grade.get("dias"))[:160])
+    if dias_com_vaga:
+        dia = dias_com_vaga[0]["data"]
+        _, do_dia = pedir("GET", f"/api/publica/disponibilidade?servico_id={corte['id']}"
+                                 f"&profissional_id={rafael['id']}&data={dia}")
+        slots = do_dia.get("profissionais", [{}])[0].get("slots", [])
+        checa("o dia escolhido devolve slots em UTC", bool(slots) and slots[0].endswith("Z"), str(slots[:2]))
+        if slots:
+            hora = (datetime.strptime(slots[0], "%Y-%m-%dT%H:%M:%SZ")
+                    .replace(tzinfo=timezone.utc).astimezone(fuso_local).strftime("%H:%M"))
+
+    corpo_reserva = {"name": "Okai Verificação", "phone": telefone, "service": "Corte masculino",
+                     "barber": "Rafael", "date": dia, "time": hora}
+    status, reserva = pedir("POST", "/api/bookings", corpo_reserva, token=token)
+    checa("POST /api/bookings com Bearer -> 201", status == 201, f"{status} {reserva} ({dia} {hora})")
     codigo = reserva.get("agendamento", {}).get("codigo")
     checa("devolve código do agendamento", bool(codigo), str(reserva))
     status, repetida = pedir("POST", "/api/bookings", corpo_reserva, token=token)
     checa("mesmo horário duas vezes -> 409 horario_ocupado",
           status == 409 and repetida.get("codigo") == "horario_ocupado", f"{status} {repetida}")
+    _, depois = pedir("GET", f"/api/publica/disponibilidade?servico_id={corte['id']}"
+                             f"&profissional_id={rafael['id']}&data={dia}")
+    ainda = [s for s in depois.get("profissionais", [{}])[0].get("slots", [])
+             if s == datetime.strptime(f"{dia} {hora}", "%Y-%m-%d %H:%M").replace(tzinfo=fuso_local)
+                  .astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")]
+    checa("o horário marcado saiu da disponibilidade de todo mundo", not ainda, str(ainda))
+    _, fora = pedir("POST", "/api/bookings", dict(corpo_reserva, time="14:07"), token=token)
+    checa("horário fora da grade -> 400 horario_invalido",
+          fora.get("codigo") == "horario_invalido", f"{fora}")
     status, conta = pedir("GET", "/api/account", token=token)
     checa("a conta lista o agendamento criado", len(conta.get("agendamentos", [])) == 1, str(conta))
 

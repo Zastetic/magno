@@ -110,7 +110,7 @@ SELECT a.*, u.nome AS cliente_nome, s.nome AS servico_nome
 ```
 
 **3. Ocupação para o motor de disponibilidade** (uma query só por dia/profissional —
-nada de N+1):
+nada de N+1). Está em `server/agenda.py:ocupacao()`:
 ```sql
 SELECT inicio, fim FROM agendamentos
  WHERE profissional_id = ? AND status IN ('agendado','confirmado','concluido')
@@ -142,7 +142,14 @@ idempotente e barato — o barbeiro não precisa marcar no-show manualmente.
   `rollback()` antes de responder 409.
 - **`BEGIN IMMEDIATE` + índice único parcial são complementares** e ambos passaram no teste
   de duas threads simultâneas: uma escrita criou (201), a outra foi recusada — e a query de
-  auditoria confirmou zero horários duplicados.
+  auditoria confirmou zero horários duplicados. É o que `agenda.marcar()` faz: `BEGIN
+  IMMEDIATE` → `conferir()` de novo dentro da transação → `INSERT` → `commit`, com `rollback`
+  em todo caminho de erro.
+- **Quem entra na conta do buffer é o candidato, não a linha ocupada.** Ao procurar vaga, o
+  motor testa `[inicio, inicio + duracao + buffer)` contra o que já está marcado — por isso
+  marcar 09:00 (30 min) tira da grade 09:00 **e** 09:30, e 10:00 continua livre. Linhas antigas,
+  criadas antes do motor entrar no ar, têm `fim` sem o buffer (o `POST` daquela época somava só
+  a duração); o cálculo de vaga trata as duas formas como intervalo, sem quebrar.
 - **Índice único parcial com `status IN (...)`** precisa ser criado **depois** de a tabela
   existir com a coluna `status` (ordem do script importa numa migração futura).
 

@@ -86,12 +86,14 @@ data/    backups do .db (o banco em uso fica no ext4, ver D21)
 
 ## Status
 
-**F0 e F1 fechadas.** Além do login (e-mail com código, Google, telefone + PIN), o cliente já
+**F0, F1 e F3 fechadas.** Além do login (e-mail com código, Google, telefone + PIN), o cliente já
 tem **primeiro acesso** em `/perfil` (nome → idade → agenda, D25) e a **agenda em `/account`**
-mostrando o nome de quem entrou, com reserva real por `POST /api/bookings`. O Bearer foi
-verificado de ponta a ponta: suíte do servidor, checagens na API ao vivo e navegação no browser.
-Próximo passo do sistema: **F3** (motor de disponibilidade — a grade de dias/horas do cartão
-de agendamento ainda é fixa no HTML) e depois **F5** (painel da loja).
+mostrando o nome de quem entrou, com reserva real por `POST /api/bookings`. A grade de dias e
+horas **vem do servidor** (`GET /api/publica/disponibilidade`, D28): serviço, barbeiro, dia e
+hora saem do banco, e o `POST` valida pelo mesmo motor que desenha a grade — marcou, o horário
+sai da grade de todo mundo (e da própria tela, na hora). O Bearer foi verificado de ponta a
+ponta: suíte do servidor, checagens na API ao vivo e navegação no browser.
+Próximo passo do sistema: **F5** (painel da loja) e o que falta da **F4** (remarcar/cancelar).
 
 Os dois barbeiros de exemplo (Rafael e Bruno) nascem com `MAGNO_SEED_DEV=1`, hoje ligado no
 ambiente do serviço (`~/.config/magno/magno.env`) só para a demonstração funcionar — em produção,

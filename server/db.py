@@ -206,21 +206,46 @@ def obter_profissional_por_apelido(apelido: str) -> dict | None:
         con.close()
 
 
-def criar_agendamento(cliente_id: int, profissional_id: int, servico_id: int,
-                      inicio_utc: datetime, fim_utc: datetime, duracao_min: int, preco_centavos: int,
-                      observacao: str | None = None) -> dict:
-    """Grava a reserva com timestamps UTC ISO; o endpoint já valida disponibilidade."""
-    inicio = inicio_utc.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    fim = fim_utc.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+def obter_servico(servico_id: int) -> dict | None:
     con = conectar()
     try:
-        codigo = secrets.token_urlsafe(8)
-        cur = con.execute(
-            "INSERT INTO agendamentos (codigo, cliente_id, profissional_id, servico_id, inicio, fim, duracao_min, preco_centavos, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (codigo, cliente_id, profissional_id, servico_id, inicio, fim, duracao_min, preco_centavos, observacao),
-        )
-        con.commit()
-        return dict(con.execute("SELECT * FROM agendamentos WHERE id = ?", (cur.lastrowid,)).fetchone())
+        return con.execute("SELECT * FROM servicos WHERE id = ?", (servico_id,)).fetchone()
+    finally:
+        con.close()
+
+
+def listar_servicos_ativos() -> list[dict]:
+    """Catálogo público: só o que está ativo, na ordem que o admin definiu."""
+    con = conectar()
+    try:
+        return [dict(linha) for linha in con.execute(
+            "SELECT * FROM servicos WHERE ativo = 1 ORDER BY ordem, nome")]
+    finally:
+        con.close()
+
+
+def listar_profissionais_ativos() -> list[dict]:
+    """Equipe pública (perfil do barbeiro + nome do usuário)."""
+    con = conectar()
+    try:
+        return [dict(linha) for linha in con.execute(
+            """SELECT p.id, p.usuario_id, p.apelido, p.bio, p.foto_url, p.ordem, u.nome
+                 FROM profissionais p JOIN usuarios u ON u.id = p.usuario_id
+                WHERE p.ativo = 1 AND u.ativo = 1
+                ORDER BY p.ordem, u.nome""")]
+    finally:
+        con.close()
+
+
+def servicos_por_profissional() -> dict[int, list[int]]:
+    """Quem executa o quê — uma query só para montar a equipe sem N+1."""
+    con = conectar()
+    try:
+        mapa: dict[int, list[int]] = {}
+        for linha in con.execute(
+                "SELECT profissional_id, servico_id FROM servico_profissional ORDER BY servico_id"):
+            mapa.setdefault(linha["profissional_id"], []).append(linha["servico_id"])
+        return mapa
     finally:
         con.close()
 

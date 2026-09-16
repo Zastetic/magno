@@ -12,60 +12,83 @@ Convenções: datas/horas de entrada e saída em UTC ISO-8601; preços em centav
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/saude` | health-check (`{"ok":true,"hora":"..."}`) |
-| GET | `/api/publica/site` | textos institucionais, endereço, WhatsApp, Instagram, horários de funcionamento |
-| GET | `/api/publica/servicos` | serviços ativos (id, nome, descrição, `duracao_min`, `preco_centavos`, imagem) |
-| GET | `/api/publica/equipe` | profissionais ativos (id, nome/apelido, bio, foto, serviços que executa) |
-| GET | `/api/publica/disponibilidade` | slots livres |
-| POST | `/api/publica/agendar` | cria agendamento sem exigir login (ver decisão nº 1) |
-| GET | `/api/agendamentos/{codigo}/ics` | arquivo `.ics` do agendamento (link "adicionar ao calendário") |
+| GET | `/api/saude` | health-check (`{"ok":true,"hora":"...","banco":{...},"regras":{...}}`) |
+| GET | `/api/publica/config` | o que o site pode saber sem login (chave do CAPTCHA, WhatsApp) |
+| GET | `/api/publica/site` | textos institucionais, endereço, WhatsApp, Instagram, horários de funcionamento *(backlog F2)* |
+| GET | `/api/publica/servicos` | serviços ativos (`id`, `nome`, `descricao`, `duracao_min`, `preco_centavos`, `preco` e `duracao` já formatados, `imagem_url`) |
+| GET | `/api/publica/equipe?servico_id=` | profissionais ativos (`id`, `nome`, `apelido`, `bio`, `foto_url`, `servicos[]`); com `servico_id`, só quem executa aquele serviço |
+| GET | `/api/publica/disponibilidade` | **a grade de verdade** — slots livres por profissional |
+| POST | `/api/publica/agendar` | cria agendamento sem login *(backlog: o fluxo de hoje é `POST /api/bookings` com Bearer)* |
+| GET | `/api/agendamentos/{codigo}/ics` | arquivo `.ics` do agendamento *(backlog)* |
 
 ### `GET /api/publica/disponibilidade`
 
-Query: `servico_id` (obrigatório), `profissional_id` (opcional — sem ele, devolve a união
-dos profissionais habilitados), `data=YYYY-MM-DD` (obrigatório, hora local) **ou**
-`de`/`ate` (até 31 dias).
+`servico_id` é obrigatório; `profissional_id` é opcional (sem ele, devolve todos os
+habilitados). A janela vem em **uma das duas formas**:
 
-Resposta 200:
+- `data=YYYY-MM-DD` (hora local da loja) → slots livres daquele dia;
+- `de`/`ate` (até 31 dias) → contagem por dia, para a tira de dias do site (uma requisição
+  em vez de 21).
+
+Resposta 200 com `data`:
 ```json
 {
-  "data": "2026-09-15",
-  "servico_id": 3,
-  "duracao_min": 60,
+  "servico_id": 1, "duracao_min": 30, "fuso": "America/Sao_Paulo", "data": "2026-09-15",
   "profissionais": [
-    {
-      "profissional_id": 2,
-      "nome": "Rafael",
-      "slots": ["2026-09-15T12:00:00Z", "2026-09-15T13:00:00Z", "2026-09-15T17:30:00Z"]
-    }
+    { "profissional_id": 1, "nome": "Rafael", "apelido": "Rafael",
+      "slots": ["2026-09-15T12:00:00Z", "2026-09-15T13:00:00Z", "2026-09-15T17:30:00Z"],
+      "motivo_vazio": null }
   ],
-  "motivo_vazio": null
+  "motivo_vazio": null,
+  "motivo_texto": null
 }
 ```
-`motivo_vazio` explica quando não há slot nenhum: `"loja_fechada"`, `"fora_da_janela"`,
-`"sem_profissional_habilitado"`, `"dia_lotado"` — o front mostra a mensagem certa em vez de
-uma tela vazia.
 
-Regras aplicadas no cálculo: grade de `slot_min`, `duracao_min` do serviço, `buffer_min`,
-`antecedencia_min_h`, `janela_dias`, `horarios`, `excecoes`, `bloqueios` e agendamentos
-ativos (concluído também ocupa, para não reescrever histórico).
-
-### `POST /api/publica/agendar`
+Resposta 200 com `de`/`ate`:
 ```json
 {
-  "servico_id": 3,
-  "profissional_id": 2,
-  "inicio": "2026-09-15T13:00:00Z",
-  "nome": "João da Silva",
-  "telefone": "13997630784",
-  "observacao": "máquina 2 nas laterais",
-  "consentimento_lgpd": true
+  "servico_id": 1, "duracao_min": 30, "fuso": "America/Sao_Paulo",
+  "de": "2026-09-15", "ate": "2026-09-21",
+  "dias": [
+    {"data": "2026-09-15", "livres": 12, "primeiro": "2026-09-15T12:00:00Z",
+     "motivo_vazio": null, "motivo_texto": null},
+    {"data": "2026-09-20", "livres": 0, "primeiro": null,
+     "motivo_vazio": "loja_fechada", "motivo_texto": "A loja está fechada nesse dia."}
+  ]
 }
 ```
-- `201` → `{"codigo":"mg-7f3a91c2","inicio":"...","fim":"...","profissional":"Rafael","servico":"Corte + barba","preco_centavos":7000,"cancelamento_limite":"2026-09-15T11:00:00Z"}`
-- `409` se o slot já foi tomado (`{"erro":"Esse horário acabou de ser reservado. Escolha outro.","codigo":"slot_ocupado"}`)
-- `400` validação (telefone inválido, consentimento ausente, `servico_id` inativo, slot fora da grade/fora de `antecedencia_min_h`)
-- `429` anti-spam (máx. 5 agendamentos por IP/hora)
+
+Os slots saem em **UTC ISO** (quem formata é o navegador, com o `fuso` da resposta). O dia só
+aparece com slot se o serviço **cabe** no funcionamento daquele dia (grade de `slot_min` a
+partir da abertura, sem slot parcial no fim), o horário está fora do prazo morto
+(`antecedencia_min_h`), dentro da `janela_dias`, o profissional não tem agendamento ativo nem
+`bloqueio` encostando (o buffer do candidato conta) e a loja está aberta (`horarios` +
+`excecoes`, com exceção vencendo o horário semanal).
+
+`motivo_vazio` explica quando não há slot nenhum: `"loja_fechada"`, `"fora_da_janela"`,
+`"sem_profissional_habilitado"`, `"antecedencia_minima"`, `"dia_lotado"`, `"sem_espaco_no_dia"`.
+`motivo_texto` traz a mesma coisa em pt-BR, pronta para a tela mostrar (nunca tela vazia).
+
+Erros: `400 validacao` (falta `data`/`de`+`ate`, data mal formada, mais de 31 dias) e
+`404 nao_encontrado` (serviço inexistente/inativo, ou barbeiro que não faz o serviço).
+
+### `POST /api/bookings` (cliente autenticado)
+
+```json
+{"name": "João da Silva", "phone": "13997630784", "service": "Corte masculino",
+ "barber": "Rafael", "date": "2026-09-15", "time": "13:00"}
+```
+- `201` → `{"agendamento": {"codigo": "mg-7f3a91c2", "inicio": "...Z", "servico": "...", "barbeiro": "Rafael", "duracao_min": 30, "preco_centavos": 4500}}`
+- `409 horario_ocupado` — alguém chegou antes (ou o buffer do atendimento anterior encosta no horário)
+- `409 ja_tem_agendamento` — o próprio cliente já tem outro agendamento ativo sobreposto
+- `400 horario_passado` — no passado ou dentro de `antecedencia_min_h`
+- `400 horario_invalido` — fora da grade (minuto quebrado, fora do funcionamento, dia fechado, fora da `janela_dias`)
+- `404 indisponivel` — serviço/barbeiro inativo ou combinação que não existe em `servico_profissional`
+- `401 sessao_invalida` sem Bearer · `429` no freio de 12 agendamentos/hora por IP
+
+O horário pedido é conferido por `server/agenda.py:conferir()` — **a mesma função que desenha
+a grade** — e gravado por `agenda.marcar()` em `BEGIN IMMEDIATE` (checagem + `INSERT` na mesma
+transação; o índice único parcial é a segunda linha de defesa). `fim` já inclui o `buffer_min`.
 
 ## 2. Autenticação
 
@@ -120,7 +143,7 @@ Nunca sai daqui o hash do PIN/senha nem o `google_sub`.
 |---|---|---|
 | GET | `/api/account` 🔒 | `{usuario, agendamentos[]}` — sempre só a própria conta |
 | PATCH | `/api/account/profile` 🔒 | `{nome, idade}` → `{usuario}` (grava o perfil do primeiro acesso) |
-| POST | `/api/bookings` 🔒 | `{name, phone, service, barber, date, time}` → `201 {agendamento}` · `409 horario_ocupado` · `400 horario_passado` |
+| POST | `/api/bookings` 🔒 | `{name, phone, service, barber, date, time}` → `201 {agendamento}` · `409 horario_ocupado` (ocupado/buffer) · `409 ja_tem_agendamento` (dois horários do mesmo cliente) · `400 horario_passado` · `400 horario_invalido` (fora da grade/fechado/fora da janela) — a grade vem de `/api/publica/disponibilidade` |
 
 Páginas (HTML, servidas na mesma origem, sem dado pessoal nenhum — o JS só libera a tela
 depois de validar o Bearer em `/api/account`):
@@ -198,6 +221,7 @@ Nota: cliente vê só o próprio telefone; barbeiro vê o do dia (precisa ligar 
 | 403 | `sem_permissao` | papel insuficiente |
 | 403 | `prazo_excedido` | política de cancelamento do cliente |
 | 404 | `nao_encontrado` | recurso inexistente (ou de outro dono) |
-| 409 | `slot_ocupado` | conflito de horário / buffer |
+| 409 | `horario_ocupado` / `ja_tem_agendamento` | conflito de horário, buffer, ou o cliente já tem agendamento sobreposto |
+| 400 | `horario_passado` / `horario_invalido` | horário no passado, sem a antecedência mínima, fora da grade ou dia fechado |
 | 413 | `corpo_grande` | corpo acima de 1 MB |
 | 429 | `rate_limit` / `lockout` | anti-spam e login |

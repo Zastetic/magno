@@ -7,6 +7,7 @@ import hashlib
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from itertools import count
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -258,6 +259,28 @@ def _horario_futuro(dias=3, hora="14:00"):
     return dia, hora
 
 
+def _slot_livre(cliente, profissional_id: int, servico: str = "Corte masculino") -> tuple[str, str]:
+    """Primeiro horário realmente livre segundo o servidor.
+
+    A grade não é mais chute: quem manda é `GET /api/publica/disponibilidade` (funcionamento,
+    exceções, bloqueios, antecedência, buffer e o que já está marcado). Assim o teste não
+    quebra no domingo nem em cima de um horário que outra execução já consumiu.
+    """
+    fuso = ZoneInfo("America/Sao_Paulo")
+    servico_id = db.obter_servico_por_nome(servico)["id"]
+    hoje = datetime.now(fuso).date()
+    for deslocamento in range(1, 30):
+        dia = (hoje + timedelta(days=deslocamento)).isoformat()
+        resposta = cliente.get("/api/publica/disponibilidade"
+                               f"?servico_id={servico_id}&profissional_id={profissional_id}&data={dia}")
+        assert resposta.status_code == 200, resposta.text
+        slots = resposta.json()["profissionais"][0]["slots"]
+        if slots:
+            local = datetime.strptime(slots[0], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).astimezone(fuso)
+            return dia, local.strftime("%H:%M")
+    raise AssertionError("nenhum dia com vaga nos próximos 30 dias")
+
+
 def test_agendar_exige_bearer(cliente):
     dia, hora = _horario_futuro()
     corpo = {"name": "Cliente Bearer", "phone": telefone_novo(), "service": "Corte masculino",
@@ -267,7 +290,7 @@ def test_agendar_exige_bearer(cliente):
 
 def test_agendar_com_bearer_cria_e_nao_permite_double_booking(cliente, barbeiro_disponivel):
     token = cadastrar(cliente)["token"]
-    dia, hora = _horario_futuro()
+    dia, hora = _slot_livre(cliente, barbeiro_disponivel)
     corpo = {"name": "Cliente Bearer", "phone": telefone_novo(), "service": "Corte masculino",
              "barber": "TesteBarbeiro", "date": dia, "time": hora}
 

@@ -1109,7 +1109,7 @@ button.client-avatar:focus-visible { outline: 2px solid var(--latao); outline-of
 .barber-option { display: flex; align-items: center; gap: 9px; padding: 10px; color: var(--tinta); border: 1px solid var(--linha-forte); border-radius: var(--raio); background: var(--fundo-alto); text-align: left; cursor: pointer; font: inherit; }
 .barber-option i { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--latao-fundo); color: var(--latao-claro); font: 16px var(--serif); }
 .barber-option span { min-width: 0; }.barber-option b,.barber-option small { display:block; }.barber-option small { color: var(--tinta-3); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }.barber-option.selected { border-color: var(--latao); background: var(--latao-fundo); }
-.date-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; margin: 0 0 25px; }
+.date-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(52px, 1fr)); gap: 7px; margin: 0 0 25px; }
 .date-option { display: grid; justify-items: center; padding: 10px 4px; border: 1px solid var(--linha-forte); border-radius: var(--raio); color: var(--tinta-2); background: var(--fundo-alto); cursor: pointer; font: inherit; }.date-option span,.date-option small { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }.date-option b { font: 28px var(--serif); color: var(--tinta); margin: 3px 0; }.date-option.selected { background: var(--latao); border-color: var(--latao); color: #1a1208; }.date-option.selected b { color: #1a1208; }
 .hours-label { margin: 0 0 10px; }.time-options { display:grid; grid-template-columns: repeat(3,1fr); gap:8px; }.time-options button { padding: 11px 6px; color:var(--tinta); background:var(--fundo-alto); border:1px solid var(--linha-forte); border-radius:var(--raio); cursor:pointer; font:500 14px var(--sans); }.time-options button.selected,.time-options button:hover { color:#1a1208; border-color:var(--latao); background:var(--latao); }
 .booking-summary { margin: 25px 0 14px; padding: 15px; border-left: 2px solid var(--latao); background: var(--latao-fundo); }.booking-summary span,.booking-summary small { display:block; color:var(--tinta-2); font-size:12px; }.booking-summary b { display:block; margin:3px 0; font:24px var(--serif); }.confirm-booking { width:100%; justify-content:center; }.booking-feedback { min-height:18px; margin:12px 0 0; color:var(--latao-claro); font-size:13px; text-align:center; }
@@ -1180,3 +1180,15 @@ button.client-avatar:focus-visible { outline: 2px solid var(--latao); outline-of
 /* aviso de consentimento nas telas de entrada (LGPD) */
 .consentimento-linha { margin: 14px 0 0; color: var(--tinta-3); font-size: 12px; line-height: 1.6; }
 .consentimento-linha a { color: var(--latao-claro); text-underline-offset: 2px; }
+
+/* ------------------------------------------- grade de horários vinda do servidor (F3)
+   Os avisos de "carregando" e "sem vaga" entram dentro de contêineres que são grids; sem
+   `grid-column: 1 / -1` o parágrafo ficaria espremido numa coluna de 52px. */
+.grade-aviso { grid-column: 1 / -1; margin: 0 0 4px; padding: 12px 14px; border: 1px dashed var(--linha-forte);
+               border-radius: var(--raio); color: var(--tinta-2); font-size: 13px; line-height: 1.55; }
+.grade-aviso b { color: var(--tinta); }
+
+/* só os contêineres da agenda ficam esmaecidos enquanto carregam */
+.service-options[aria-busy="true"], .barber-options[aria-busy="true"],
+.date-list[aria-busy="true"], .time-options[aria-busy="true"] { opacity: .7; }
+

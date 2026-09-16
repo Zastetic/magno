@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=conta-menu-2">
+<link rel="stylesheet" href="styles.css?v=grade-1">
 </head>
 <body class="composicao-editorial account-loading">
 <header class="topo"><div class="limite">
@@ -46,31 +46,26 @@
         <div class="campo"><label for="phone">Telefone (a barbearia confirma por aqui)</label><input id="phone" inputmode="tel" autocomplete="tel" required placeholder="(13) 99763-0784"></div>
         <div class="booking-divider"></div>
         <p class="rotulo">Qual serviço?</p>
-        <div class="service-options" id="serviceOptions">
-          <button type="button" class="service-option selected" data-service="Corte masculino" data-price="R$ 45" data-duration="30 min"><b>Corte masculino</b><span>30 min · R$ 45</span></button>
-          <button type="button" class="service-option" data-service="Corte + barba" data-price="R$ 70" data-duration="1 h"><b>Corte + barba</b><span>1 h · R$ 70</span></button>
-          <button type="button" class="service-option" data-service="Barba" data-price="R$ 35" data-duration="30 min"><b>Barba na navalha</b><span>30 min · R$ 35</span></button>
+        <div class="service-options" id="serviceOptions" aria-busy="true">
+          <p class="grade-aviso">Carregando os serviços da casa…</p>
         </div>
         <div class="booking-divider"></div>
         <p class="rotulo">Preferência de barbeiro</p>
-        <div class="barber-options" id="barberOptions">
-          <button type="button" class="barber-option selected" data-barber="Rafael"><i>R</i><span><b>Rafael</b><small>Degradê e navalha</small></span></button>
-          <button type="button" class="barber-option" data-barber="Bruno"><i>B</i><span><b>Bruno</b><small>Clássico na tesoura</small></span></button>
+        <div class="barber-options" id="barberOptions" aria-busy="true">
+          <p class="grade-aviso">Carregando a equipe…</p>
         </div>
       </form>
 
       <aside class="schedule-card">
         <div class="booking-heading"><span class="booking-step">02</span><div><p class="rotulo">Dia e horário</p><h2>Quando fica bom?</h2></div></div>
-        <div class="date-list" id="dateList" aria-label="Escolha o dia">
-          <button type="button" class="date-option" data-date="2026-09-16"><span>Ter</span><b>16</b><small>Set</small></button>
-          <button type="button" class="date-option selected" data-date="2026-09-17"><span>Qua</span><b>17</b><small>Set</small></button>
-          <button type="button" class="date-option" data-date="2026-09-18"><span>Qui</span><b>18</b><small>Set</small></button>
-          <button type="button" class="date-option" data-date="2026-09-19"><span>Sex</span><b>19</b><small>Set</small></button>
-          <button type="button" class="date-option" data-date="2026-09-20"><span>Sáb</span><b>20</b><small>Set</small></button>
+        <div class="date-list" id="dateList" aria-label="Escolha o dia" aria-busy="true">
+          <p class="grade-aviso">Procurando os próximos dias com vaga…</p>
         </div>
-        <p class="rotulo hours-label">Horários livres · quarta, 17</p>
-        <div class="time-options" id="timeOptions"><button type="button">09:30</button><button type="button">10:30</button><button type="button" class="selected">14:00</button><button type="button">15:30</button><button type="button">17:00</button><button type="button">18:00</button></div>
-        <div class="booking-summary" id="bookingSummary"><span>Corte masculino · Rafael</span><b>Qua, 17 às 14:00</b><small>30 min · R$ 45</small></div>
+        <p class="rotulo hours-label" id="hoursLabel">Horários livres</p>
+        <div class="time-options" id="timeOptions" aria-busy="true">
+          <p class="grade-aviso">Os horários aparecem assim que o dia é escolhido.</p>
+        </div>
+        <div class="booking-summary" id="bookingSummary"><span>Carregando a agenda…</span><b>Um instante</b><small>a grade vem do servidor</small></div>
         <button class="btn btn-cheio confirm-booking" type="submit" form="bookingForm">Confirmar horário <span aria-hidden="true">→</span></button>
         <p class="booking-feedback" id="bookingFeedback" aria-live="polite"></p>
       </aside>
@@ -84,5 +79,5 @@
 </nav></div></footer>
 <script src="turnstile.js?v=captcha-1" defer></script>
 <script src="auth.js?v=captcha-1" defer></script>
-<script src="conta.js?v=conta-menu-2" defer></script>
+<script src="conta.js?v=grade-1" defer></script>
 </body></html>

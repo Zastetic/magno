@@ -201,13 +201,13 @@ dele).
 
 **Slide 5.3 — Estado real do site hoje (transparência)**
 - **Funcionando:** home institucional, login por e-mail + código, login com Google (modo de
-  teste), login por telefone + PIN, primeiro acesso em `/perfil` (nome → idade) e a agenda do
-  cliente em `/account` com reserva real de horário.
-- **Pendente e assumido:** a grade de dias e horas do cartão de agendamento ainda é **fixa no
-  HTML** (16 a 20/09/2026) — passada essa data não dá mais para agendar. A correção é a fase F3
-  (motor de disponibilidade, com `horarios`, `excecoes`, `bloqueios` e buffer).
-- **Pendente:** painel da loja (F5), remarcar/cancelar pelo cliente (F4), CSV e páginas de
-  privacidade (F6).
+  teste), login por telefone + PIN, primeiro acesso em `/perfil` (nome → idade), agenda do
+  cliente em `/account` com reserva real de horário e **a grade de dias e horas calculada no
+  servidor** (F3/D28): funcionamento da loja, exceções, bloqueios, antecedência mínima, janela de
+  60 dias, duração do serviço e buffer. Marcar um horário o tira da grade de todo mundo — o
+  `POST` valida pelo mesmo motor que desenha a grade, em `BEGIN IMMEDIATE` + índice único.
+- **Pendente:** painel da loja (F5); remarcar/cancelar pelo cliente, `.ics` e exclusão de conta
+  LGPD (F4); CSV de relatório (F6).
 - **Falta 1 campo no painel Cloudflare** para o domínio funcionar: trocar o tipo de `HTTPS` para
   `HTTP` no Public Hostname `magnum.autoava.us` → `127.0.0.1:8100` (é a causa do 502 atual).
 - **Nota honesta para quem for responder perguntas:** o script `scripts/valida_schema.py` hoje
@@ -215,7 +215,7 @@ dele).
   `codigos_email` e `logins_pendentes`). O problema é o script, não o banco: são 16 verificações
   OK e a que falha é só a lista de nomes de tabela.
 
-**Mostrar na tela:** `pytest` rodando (150 passando) e um print de `docs/provas/`.
+**Mostrar na tela:** `pytest` rodando (174 passando) e um print de `docs/provas/`.
 
 ---
 

@@ -49,14 +49,29 @@ Porta 8100 · banco `data/magno.db` (testes usam `MAGNO_DB=/tmp/test-magno.db`).
 - [ ] Testes: CRUD, permissões, catálogo público só mostra ativos
 - **Pronto quando:** home renderiza serviços e equipe vindos do banco e o admin muda um preço e vê na home.
 
-## F3 — Motor de disponibilidade + agendamento (o coração)
-- [ ] `server/agenda.py`: grade de slots, `buffer_min`, `antecedencia_min_h`, `janela_dias`
-- [ ] Respeitar `horarios`, `excecoes` (feriado/especial), `bloqueios` e agendamentos ativos
-- [ ] `motivo_vazio` explicando dia sem slots
-- [ ] `POST /api/publica/agendar` em `BEGIN IMMEDIATE` + checagem de overlap + índice único
-- [ ] Anti-spam: 5 agendamentos/IP/hora; reuso de cliente por telefone
-- [ ] Testes: conflito (dois POST simultâneos → 1×201 + 1×409), buffer, antecedência, janela, feriado, bloqueio, slot parcial no fim do dia, mudança de horário de verão do fuso
-- **Pronto quando:** teste concorrente passa 20/20 vezes e nenhuma combinação gera horário duplicado.
+## F3 — Motor de disponibilidade + agendamento (o coração) ✅ (fechada 2026-09-16)
+- [x] `server/agenda.py`: grade de slots, `buffer_min`, `antecedencia_min_h`, `janela_dias`
+- [x] Respeitar `horarios`, `excecoes` (feriado/especial), `bloqueios` e agendamentos ativos
+- [x] `motivo_vazio` explicando dia sem slots (`loja_fechada`, `fora_da_janela`,
+      `sem_profissional_habilitado`, `antecedencia_minima`, `dia_lotado`, `sem_espaco_no_dia`)
+      + `motivo_texto` em pt-BR pronto para a tela
+- [x] `GET /api/publica/disponibilidade` (dia ou `de`/`ate` até 31 dias) + `GET /api/publica/servicos`
+      e `/api/publica/equipe` para o site montar serviço/barbeiro/dia/hora do banco
+- [x] `POST /api/bookings` valida pelo **mesmo motor** que desenha a grade (`agenda.conferir`) e
+      grava em `BEGIN IMMEDIATE` (`agenda.marcar`): checagem de overlap + índice único parcial.
+      `fim` já inclui o buffer; o candidato é testado com `[início, início+duração+buffer)`
+- [x] Reuso de cliente por telefone (a conta do Bearer ganha o nome/telefone que ele digitou)
+- [x] Anti-spam: 12 agendamentos/IP/hora + teto de 600 req/min (`server/limites.py`)
+- [x] Testes: `tests/test_agenda.py` (21 testes) — grade, slot parcial no fim do dia, serviço que
+      não cabe, antecedência, janela, feriado, horário especial, bloqueio, buffer, fuso com
+      horário de verão, dois pedidos simultâneos no mesmo slot (5×2 threads → 5 criam, 5 recebem
+      conflito) e **marcar → o horário sai da disponibilidade de todo mundo**
+- [x] `web/conta.js` consome a grade do servidor: tira de dias só com dias que têm vaga, horários
+      recarregados a cada seleção, e recarrega sozinha depois de confirmar e ao voltar para a aba
+- **Pronto quando:** teste concorrente passa 20/20 vezes e nenhuma combinação gera horário
+  duplicado. **Verificado:** 5 slots × 2 threads simultâneas → 5×201 e 5×409, zero duplicados na
+  auditoria do banco; 174 testes de servidor, 35 verificações de browser (`scripts/testa_perfil.py`),
+  40 na API ao vivo (`scripts/testa_bearer.py`).
 
 ## F4 — Área do cliente
 - [x] **Primeiro acesso** (`/perfil`): pergunta o nome e depois a idade antes de liberar a agenda — D25
@@ -64,10 +79,9 @@ Porta 8100 · banco `data/magno.db` (testes usam `MAGNO_DB=/tmp/test-magno.db`).
 - [x] **Agenda do cliente** em `/account` com o nome de quem está logado + `POST /api/bookings` com Bearer
       (409 em horário ocupado, 400 em horário passado)
 - [x] Verificação do Bearer de ponta a ponta: `tests/test_bearer.py` (suíte), `scripts/testa_bearer.py`
-      (34 checagens ao vivo em 8100), `scripts/testa_perfil.py` (24 no browser, com prints)
-- [ ] **Grade de horários de verdade**: hoje os dias e as horas do cartão de agendamento estão fixos
-      no HTML (`data-date` de 16 a 20/09/2026). Depois dessa data não dá mais para agendar — precisa
-      vir de `GET /api/publica/disponibilidade` (F3) antes de mostrar a página para cliente
+      (40 checagens ao vivo em 8100), `scripts/testa_perfil.py` (35 no browser, com prints)
+- [x] **Grade de horários de verdade** (D28): os dias e as horas vinham fixos no HTML (16–20/09/2026)
+      e agora saem de `GET /api/publica/disponibilidade` — mesma fonte que o `POST` valida (F3)
 - [ ] Campo para criar/trocar a **senha opcional** na interface (a API `POST /api/auth/senha` existe,
       mas a tela antiga de conta saiu na reescrita da agenda)
 - [ ] Fluxo de agendamento em 4 passos (serviço → profissional → dia → hora) + confirmação
@@ -127,14 +141,15 @@ múltiplas unidades, avaliação com nota, fila de espera, PWA instalável.
 
 Proteções e acabamento já estão no código. O que **bloqueia** uma abertura de verdade:
 
-1. **Disponibilidade real (F3)** — a grade de dias/horas do cartão de agendamento ainda está fixa
-   no HTML (`data-date` de 16 a 20/09/2026). Depois dessa data, não dá mais para agendar
-   (`GET /api/publica/disponibilidade` + `POST /api/publica/agendar` com `BEGIN IMMEDIATE`).
-2. **Envio de e-mail de verdade** — hoje `MAGNO_EMAIL_MODO=arquivo` grava o código em
+1. **Envio de e-mail de verdade** — hoje `MAGNO_EMAIL_MODO=arquivo` grava o código em
    `logs/emails/`. Cliente real precisa de `smtp`/`resend`/`brevo` + SPF/DKIM (D23/D24).
-3. **Chaves do Turnstile** (D27): criar o widget no painel Cloudflare e pôr `MAGNO_TURNSTILE_SITE`
+2. **Chaves do Turnstile** (D27): criar o widget no painel Cloudflare e pôr `MAGNO_TURNSTILE_SITE`
    e `MAGNO_TURNSTILE_SECRET`; começar com `MODO=log` e depois virar `on`.
-4. **Credenciais do Google** (`GOOGLE_CLIENT_ID`/`SECRET`) — hoje o botão só funciona com `GOOGLE_FAKE`.
-5. **Admin real** criado e credenciais de exemplo trocadas (`MAGNO_SEED_DEV` fora de produção).
-6. **Public Hostname no Cloudflare** (`magnum.autoava.us` → `HTTP 127.0.0.1:8100`) e HTTPS conferido.
-7. **Backup diário** do banco (`scripts/backup.sh` + cronjob) antes de ter cliente de verdade.
+3. **Credenciais do Google** (`GOOGLE_CLIENT_ID`/`SECRET`) — hoje o botão só funciona com `GOOGLE_FAKE`.
+4. **Admin real** criado e credenciais de exemplo trocadas (`MAGNO_SEED_DEV` fora de produção).
+5. **Public Hostname no Cloudflare** (`magnum.autoava.us` → `HTTP 127.0.0.1:8100`) e HTTPS conferido.
+6. **Backup diário** do banco (`scripts/backup.sh` + cronjob) antes de ter cliente de verdade.
+
+Resolvido em 2026-09-16: a **disponibilidade real** (F3/D28) saiu do caminho — a grade de dias e
+horas é calculada no servidor a cada consulta e o `POST` valida pelo mesmo motor, então marcar um
+horário o tira da grade de todo mundo. O cartão de agendamento não tem mais data fixa no HTML.

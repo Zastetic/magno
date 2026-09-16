@@ -11,11 +11,14 @@ import json
 import pathlib
 import random
 import urllib.request
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from playwright.sync_api import sync_playwright
 
 BASE = "http://127.0.0.1:8100"
 PROVAS = pathlib.Path(__file__).resolve().parent.parent / "docs" / "provas"
+FUSO = ZoneInfo("America/Sao_Paulo")
 ok = falhas = 0
 
 
@@ -27,6 +30,11 @@ def checa(nome: str, condicao: bool, extra: str = "") -> None:
     else:
         falhas += 1
         print(f"  [FALHOU] {nome} {extra}")
+
+
+def pegar_json(caminho: str) -> dict:
+    with urllib.request.urlopen(BASE + caminho, timeout=10) as resposta:
+        return json.loads(resposta.read().decode())
 
 
 def criar_conta(nome: str) -> dict:
@@ -43,6 +51,10 @@ def criar_conta(nome: str) -> dict:
 NOME = "João Verificação"
 conta = criar_conta(NOME)
 PROVAS.mkdir(parents=True, exist_ok=True)
+# O que o banco oferece agora — é contra isso que o site tem que bater.
+catalogo = [servico["nome"] for servico in pegar_json("/api/publica/servicos")["servicos"]]
+equipe = [barbeiro["apelido"] for barbeiro in pegar_json("/api/publica/equipe")["profissionais"]]
+hoje = datetime.now(FUSO).date()
 
 with sync_playwright() as p:
     navegador = p.chromium.launch()
@@ -90,36 +102,67 @@ with sync_playwright() as p:
           pg.input_value("#phone").replace(" ", "") != "", pg.input_value("#phone"))
     pg.screenshot(path=str(PROVAS / "agenda-com-nome.png"), full_page=True)
 
-    print("4) reservar de verdade com o Bearer do navegador")
-    # Dias/horas/barbeiros são os do HTML fixo: roda as combinações até achar cadeira livre.
-    # (cada execução consome uma vaga dessa grade — por isso a F3 do backlog é urgente)
-    feedback = ""
-    tentativas = 0
-    for barbeiro in ("Rafael", "Bruno"):
-        pg.click(f"#barberOptions button[data-barber='{barbeiro}']")
-        for dia in ("2026-09-18", "2026-09-19", "2026-09-20", "2026-09-16", "2026-09-17"):
-            for hora in ("15:30", "17:00", "10:30", "09:30", "18:00"):
-                tentativas += 1
-                pg.click(f"#dateList button[data-date='{dia}']")
-                pg.click(f"#timeOptions button:text-is('{hora}')")
-                pg.click(".confirm-booking")
-                # sem wait_for_function: a CSP estrita da loja (script-src 'self') proíbe eval na página
-                feedback = ""
-                for _ in range(40):
-                    feedback = pg.inner_text("#bookingFeedback")
-                    if feedback.startswith("Fechado") or "ocupado" in feedback or "telefone" in feedback:
-                        break
-                    pg.wait_for_timeout(250)
-                if feedback.startswith("Fechado"):
-                    break
-            if feedback.startswith("Fechado"):
-                break
-        if feedback.startswith("Fechado"):
+    print("4) a grade vem do servidor (F3) e o horário marcado sai dela")
+    # A CSP é estrita (script-src 'self'): nada de wait_for_function, laço de polling.
+    for _ in range(40):
+        if pg.locator("#dateList .date-option").count() >= 2:
             break
-    checa("o servidor confirmou o horário", "Fechado. Código" in feedback, f"{feedback} ({tentativas} tentativas)")
+        pg.wait_for_timeout(250)
+    servicos = pg.eval_on_selector_all("#serviceOptions button", "els => els.map(e => e.dataset.servico)")
+    barbeiros = pg.eval_on_selector_all("#barberOptions button", "els => els.map(e => e.dataset.barber)")
+    dias = pg.eval_on_selector_all("#dateList .date-option", "els => els.map(e => e.dataset.date)")
+    checa("os serviços vêm do catálogo do banco", len(servicos) == len(catalogo),
+          f"{servicos} vs {catalogo}")
+    checa("os barbeiros vêm da equipe do banco", set(barbeiros) == set(equipe), f"{barbeiros} vs {equipe}")
+    checa("a tira de dias é calculada (>= 2 dias com vaga)", len(dias) >= 2, str(dias))
+    checa("nenhum dia da tira está no passado", all(d >= hoje.isoformat() for d in dias), str(dias))
+    checa("o confirmar fica travado até escolher um horário", pg.is_disabled(".confirm-booking"))
+    pg.screenshot(path=str(PROVAS / "agenda-grade-do-servidor.png"), full_page=True)
+
+    dia_escolhido = dias[0]
+    servico_id = pg.eval_on_selector("#serviceOptions .selected", "e => Number(e.dataset.servicoId)")
+    barbeiro_id = pg.eval_on_selector("#barberOptions .selected", "e => Number(e.dataset.profissionalId)")
+    horas = pg.eval_on_selector_all("#timeOptions button", "els => els.map(e => e.dataset.hora)")
+    checa("o dia escolhido tem horários livres", bool(horas), str(horas))
+    checa("o rótulo dos horários traz o dia escolhido", "·" in pg.inner_text("#hoursLabel"),
+          pg.inner_text("#hoursLabel"))
+
+    hora_escolhida = horas[0]
+    pg.click(f"#timeOptions button[data-hora='{hora_escolhida}']")
+    checa("o resumo passa a mostrar o horário escolhido",
+          hora_escolhida in pg.inner_text("#bookingSummary"), pg.inner_text("#bookingSummary"))
+    pg.click(".confirm-booking")
+    feedback = ""
+    for _ in range(40):
+        feedback = pg.inner_text("#bookingFeedback")
+        if feedback.startswith("Fechado") or "ocupado" in feedback:
+            break
+        pg.wait_for_timeout(250)
+    checa("o servidor confirmou o horário", "Fechado. Código" in feedback, feedback)
     checa("o próximo horário aparece preenchido",
           "reservado" in pg.inner_text("#upcomingTitle"), pg.inner_text("#upcomingTitle"))
-    pg.screenshot(path=str(PROVAS / "agenda-agendamento-confirmado.png"), full_page=True)
+
+    # O ponto do F3: o horário recém-marcado (e o que cai no buffer) sai da grade na hora.
+    for _ in range(40):
+        horas_depois = pg.eval_on_selector_all("#timeOptions button", "els => els.map(e => e.dataset.hora)")
+        if hora_escolhida not in horas_depois:
+            break
+        pg.wait_for_timeout(250)
+    checa("o horário marcado saiu da grade do site", hora_escolhida not in horas_depois,
+          f"{hora_escolhida} ainda em {horas_depois}")
+
+    esperado = datetime.strptime(f"{dia_escolhido} {hora_escolhida}", "%Y-%m-%d %H:%M").replace(
+        tzinfo=ZoneInfo("America/Sao_Paulo")).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    na_api = pegar_json(f"/api/publica/disponibilidade?servico_id={servico_id}"
+                        f"&profissional_id={barbeiro_id}&data={dia_escolhido}")
+    slots_api = na_api["profissionais"][0]["slots"]
+    checa("a API também não oferece mais esse horário", esperado not in slots_api,
+          f"{esperado} ainda em {slots_api[:3]}")
+    fora_da_grade = [slot for slot in slots_api
+                     if int(slot[14:16]) % 30 or not 8 <= int(slot[11:13]) - 3 < 20]
+    checa("todo slot da API está na grade de 30 min dentro do funcionamento", not fora_da_grade,
+          str(fora_da_grade[:3]))
+    pg.screenshot(path=str(PROVAS / "agenda-horario-consumido.png"), full_page=True)
 
     print("5) editar pelo 'Meu perfil' e voltar")
     pg.click("#editProfile")

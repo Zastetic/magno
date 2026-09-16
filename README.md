@@ -101,3 +101,8 @@ cadastrar os barbeiros de verdade e remover essa linha.
 
 O deploy está a **um passo no painel Cloudflare**: Public Hostname `magnum.autoava.us` →
 `HTTP 127.0.0.1:8100`. Servidor e túnel já rodam como serviço (`docs/05-DEPLOY.md`).
+
+O site também **instala como app**: no Android, Chrome → ⋮ → "Instalar app"; no iPhone,
+Safari → "Adicionar à Tela de Início". Abre em tela cheia, com ícone próprio, e sem rede mostra
+uma tela explicando que nada ficou pela metade. Como funciona, como regerar os ícones e o
+caminho para um APK de verdade: `docs/06-APP.md`.

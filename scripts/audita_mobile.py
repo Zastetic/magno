@@ -20,8 +20,8 @@ from playwright.sync_api import sync_playwright
 BASE = "http://127.0.0.1:8100"
 PASTA = pathlib.Path("/tmp/mobile")
 LARGURAS = (("360x640", 360, 640), ("390x844", 390, 844), ("414x896", 414, 896), ("768x1024", 768, 1024))
-PAGINAS = ("/", "/index-b.html", "/login", "/perfil", "/account", "/status.html")
-PAGINAS_SEM_MENU = ("/status.html",)   # página interna, sem navegação de site
+PAGINAS = ("/", "/index-b.html", "/login", "/perfil", "/account", "/status.html", "/offline.html")
+PAGINAS_SEM_MENU = ("/status.html", "/offline.html")   # páginas internas, sem navegação de site
 
 MEDE = """(() => {
   const largura = window.innerWidth;

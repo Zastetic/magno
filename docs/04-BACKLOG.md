@@ -119,6 +119,11 @@ Porta 8100 · banco `data/magno.db` (testes usam `MAGNO_DB=/tmp/test-magno.db`).
       as páginas e aviso de consentimento nas telas que criam conta
 - [x] 404 do site (o `/api` continua JSON), `robots.txt`, `sitemap.xml`, canonical + meta de
       compartilhamento (OG/Twitter) e `Permissions-Policy`/HSTS nos cabeçalhos
+- [x] **App no celular (PWA, D29)**: `manifest.webmanifest` (ícones 192/512 + maskable), service
+      worker que guarda só o casco (nunca `/api/*` nem as telas logadas), `offline.html` no design
+      do site e ícones gerados por `scripts/gera_icones_pwa.py` (do SVG do poste, via Playwright).
+      Instalabilidade conferida pelo próprio Chrome (`Page.getInstallabilityErrors` vazio) e
+      offline testado com a rede cortada em `scripts/testa_pwa.py` (19 verificações)
 - [ ] Backup diário (`scripts/backup.sh` + cronjob Hermes `no_agent`)
 - **Pronto quando:** suíte completa verde + navegação do fluxo inteiro no celular sem zoom.
 
@@ -135,7 +140,13 @@ Porta 8100 · banco `data/magno.db` (testes usam `MAGNO_DB=/tmp/test-magno.db`).
 
 ## Depois da v1 (não fazer agora)
 Confirmação por WhatsApp API, sinal/entrada paga, fidelidade, comissão, estoque de produtos,
-múltiplas unidades, avaliação com nota, fila de espera, PWA instalável.
+múltiplas unidades, avaliação com nota, fila de espera.
+**App**: o PWA já resolve "ícone na tela do celular" (D29). O passo seguinte, quando valer,
+é **APK de verdade** (TWA/Bubblewrap + `.well-known/assetlinks.json` com o SHA-256 da chave de
+assinatura) — fazer **junto** do cookie `HttpOnly`, porque com `sessionStorage` o app pediria
+login a cada abertura. Ordem de grandeza: ~1 h com o Android SDK no lugar (JDK e Node já tem),
+20–30 min por build depois; PWABuilder na nuvem dispensa o SDK. Play Store é outro bloco
+(US$ 25, AAB, revisão de 1 a 7 dias). Detalhes em `docs/06-APP.md`.
 
 ## Para abrir ao público — o que ainda falta (checado em 2026-09-14)
 

@@ -784,6 +784,17 @@ def google_fake(request: Request, state: str = ""):
 
 
 if WEB.is_dir():
+    @app.get("/manifest.webmanifest", include_in_schema=False)
+    def manifest_pwa():
+        """Manifest do PWA. Precisa do tipo certo: o StaticFiles não conhece `.webmanifest`."""
+        return FileResponse(WEB / "manifest.webmanifest", media_type="application/manifest+json")
+
+    @app.get("/sw.js", include_in_schema=False)
+    def service_worker():
+        """Service worker sempre revalidado: cacheado, o app ficaria preso numa versão antiga."""
+        return FileResponse(WEB / "sw.js", media_type="text/javascript",
+                            headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
+
     @app.get("/login", include_in_schema=False)
     def login_page():
         return FileResponse(WEB / "entrar.html")

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 30">
+  <defs><clipPath id="clipe"><rect x="2" y="2" width="14" height="26" rx="7"/></clipPath></defs>
+  <g clip-path="url(#clipe)" stroke="#c69347" stroke-width="1.6" opacity=".9">
+    <line x1="-1" y1="12" x2="19" y2="4"/>
+    <line x1="-1" y1="20" x2="19" y2="12"/>
+    <line x1="-1" y1="28" x2="19" y2="20"/>
+  </g>
+  <rect x="2" y="2" width="14" height="26" rx="7" fill="none" stroke="#c69347" stroke-width="1.6"/>
+</svg>
